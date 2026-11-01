@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "assetBase": "",
+  "brand": {
+    "name": "DRAGON STORE",
+    "logo": "assets/images/brand/dragon-logo.png"
+  },
+  "contact": {
+    "whatsapp": "9647877477701",
+    "phoneDisplay": "+964 7877477701"
+  },
+  "social": {
+    "facebook": "https://www.facebook.com/share/1Ub9cWAjQP/",
+    "instagram": "https://www.instagram.com/drag.0nstore?igsh=MTBjMTNodDZlc2NsZQ=="
+  },
+  "labels": {
+    "priceTbd": "السعر قيد التحديد"
+  },
+  "pricing": {
+    "currency": "د.ع",
+    "roundUpTo": 1000,
+    "tiers": [
+      {
+        "belowGrams": 100,
+        "perGram": 130
+      }
+    ],
+    "defaultPerGram": 100
+  },
+  "fallbackImages": {
+    "product": [
+      "assets/images/placeholders/product-fallback-01.jpg",
+      "assets/images/placeholders/product-fallback-02.jpg",
+      "assets/images/placeholders/product-fallback-03.jpg"
+    ],
+    "comingSoon": "assets/images/placeholders/iot-coming-soon.jpg"
+  },
+  "hero": {
+    "intervalMs": 3400,
+    "slides": [
+      {
+        "title": "دراغون ستور للطباعة ثلاثية الأبعاد",
+        "image": "assets/images/hero/hero-01-store.jpg"
+      },
+      {
+        "title": "إكسسوارات الألعاب",
+        "image": "assets/images/hero/hero-02-gaming.jpg"
+      },
+      {
+        "title": "مجسمات إنترنت الأشياء IoT",
+        "image": "assets/images/hero/hero-03-iot.jpg"
+      },
+      {
+        "title": "أدوات منزلية رائعة",
+        "image": "assets/images/hero/hero-04-household.jpg"
+      },
+      {
+        "title": "مجسمات مرحة وطريفة",
+        "image": "assets/images/hero/hero-05-figurines.jpg"
+      }
+    ]
+  },
+  "categories": [
+    {
+      "id": "trending",
+      "slug": "trending",
+      "name": "الترند",
+      "slogan": "الأكثر رواجاً وطلباً هذا الأسبوع في متجر التنين",
+      "icon": "trend",
+      "shared": true
+    },
+    {
+      "id": "camping",
+      "slug": "gaming",
+      "name": "Gamming",
+      "slogan": "تجهيزات طباعة عملية لعشاق الألعاب والتقنية",
+      "icon": "joystick"
+    },
+    {
+      "id": "best-sellers",
+      "slug": "best-sellers",
+      "name": "الأكثر مبيعاً",
+      "slogan": "اختيارات مجتمعاتنا الأكثر طلباً وشهرة",
+      "icon": "flame",
+      "shared": true
+    },
+    {
+      "id": "discounts",
+      "slug": "discounts",
+      "name": "الخصومات",
+      "slogan": "عروض حصرية وخصومات لفترة محدودة جداً",
+      "icon": "tag",
+      "shared": true
+    },
+    {
+      "id": "gifts",
+      "slug": "gifts",
+      "name": "الهدايا",
+      "slogan": "قطع تذكارية فريدة ومخصصة لمن تحب",
+      "icon": "gift"
+    },
+    {
+      "id": "artistic",
+      "slug": "artistic",
+      "name": "المجسمات الفنية",
+      "slogan": "تحف فنية ومنحوتات هندسية فائقة الدقة",
+      "icon": "palette"
+    },
+    {
+      "id": "tools",
+      "slug": "tools",
+      "name": "الأدوات",
+      "slogan": "إكسسوارات ومنظمات عملية مصممة لمكتبك",
+      "icon": "gear"
+    },
+    {
+      "id": "iot",
+      "slug": "iot",
+      "name": "مشاريع IOT",
+      "slogan": "دمج الذكاء الاصطناعي والإلكترونيات بالطباعة — قريباً",
+      "icon": "cpu",
+      "comingSoon": true
+    }
+  ],
+  "collections": [
+    {
+      "id": "trending",
+      "strategy": "random-per-category",
+      "perCategory": 3,
+      "note": "random pick on every page load (same as legacy behaviour)"
+    },
+    {
+      "id": "best-sellers",
+      "strategy": "slice-per-category",
+      "offset": 3,
+      "count": 2
+    },
+    {
+      "id": "discounts",
+      "strategy": "min-weight",
+      "minWeightGrams": 100
+    }
+  ],
+  "nav": [
+    {
+      "id": "trending",
+      "label": "الترند",
+      "icon": "trend"
+    },
+    {
+      "id": "camping",
+      "label": "Gamming",
+      "icon": "joystick"
+    },
+    {
+      "id": "best-sellers",
+      "label": "الأكثر مبيعاً"
+    },
+    {
+      "id": "discounts",
+      "label": "الخصومات"
+    },
+    {
+      "id": "gifts",
+      "label": "الهدايا"
+    },
+    {
+      "id": "artistic",
+      "label": "المجسمات الفنية"
+    },
+    {
+      "id": "tools",
+      "label": "الأدوات"
+    },
+    {
+      "id": "iot",
+      "label": "مشاريع IOT"
+    },
+    {
+      "id": "all",
+      "label": "كل المنتجات"
+    }
+  ]
+}

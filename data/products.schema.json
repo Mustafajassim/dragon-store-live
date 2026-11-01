@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dragon Store — products.json",
+  "type": "object",
+  "required": ["schemaVersion", "products"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "categoryId", "slug", "name", "price", "images"],
+        "additionalProperties": false,
+        "properties": {
+          "id":            { "type": "string", "description": "Stable id. Used in share links (#product=<id>) and saved carts — never rename." },
+          "productNumber": { "type": "integer", "minimum": 1, "description": "Customer-facing number (#12), searchable. Omit for coming-soon items." },
+          "categoryId":    { "type": "string", "description": "Must match an id in store.json → categories." },
+          "slug":          { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "Used for image file names." },
+          "name":          { "type": "string" },
+          "weightGrams":   { "type": ["integer", "null"], "minimum": 1 },
+          "price":         { "type": ["integer", "null"], "minimum": 0, "description": "Iraqi dinar. null = not priced." },
+          "material":      { "type": "string" },
+          "comingSoon":    { "type": "boolean" },
+          "priceLabel":    { "type": "string", "description": "Badge text for unpriced items (default: store.json → labels.priceTbd)." },
+          "images": {
+            "type": "array", "minItems": 1,
+            "items": { "type": "string", "pattern": "^assets/images/.+\\.(jpg|jpeg|png|webp|avif)$" },
+            "description": "images[0] is the card/cart/search thumbnail; the full list feeds the modal gallery."
+          }
+        }
+      }
+    }
+  }
+}

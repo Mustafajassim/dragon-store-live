@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#08080b">
+  <title>لوحة التحكم — DRAGON STORE</title>
+  <link rel="icon" type="image/png" href="../assets/images/brand/dragon-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <!-- same stylesheet as the storefront → same tokens, fonts, buttons, inputs -->
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="adm">
+<div class="ambient-glow" aria-hidden="true"><div class="glow-blob b1"></div><div class="glow-blob b2"></div></div>
+
+<header class="adm-hdr">
+  <div class="adm-hdr-in">
+    <div class="adm-brand"><img src="../assets/images/brand/dragon-logo.png" alt=""><div><div class="logo" style="animation:none">DRAGON STORE</div><div class="adm-sub">لوحة التحكم</div></div></div>
+    <div class="adm-hdr-actions">
+      <a class="adm-link" href="../" target="_blank" rel="noopener">عرض الموقع ↗</a>
+      <button class="adm-btn-ghost" id="btnSettings" type="button">الاتصال</button>
+    </div>
+  </div>
+</header>
+
+<main class="adm-main">
+  <!-- loading -->
+  <section id="loading" class="adm-center" hidden><div class="boot-ring"></div><p class="adm-muted" id="loadingTxt">جاري الاتصال بالمستودع...</p></section>
+
+  <!-- connection -->
+  <section id="setup" class="adm-panel" hidden>
+    <h1 class="adm-h1 fire-txt">الاتصال بالمستودع</h1>
+    <p class="adm-muted">الموقع ثابت على GitHub، لذلك تحفظ اللوحة التعديلات بإنشاء <b>commit</b> مباشرة في المستودع (ملفات <code>data/products.json</code> وصور المنتجات). يلزمك مرة واحدة إنشاء توكن.</p>
+    <div class="adm-grid2">
+      <div><label class="field-lbl" for="fOwner">اسم الحساب (Owner)</label><input class="field-input" id="fOwner" dir="ltr" autocomplete="off" placeholder="username"></div>
+      <div><label class="field-lbl" for="fRepo">اسم المستودع (Repo)</label><input class="field-input" id="fRepo" dir="ltr" autocomplete="off" placeholder="dragon-store"></div>
+      <div><label class="field-lbl" for="fBranch">الفرع (اختياري)</label><input class="field-input" id="fBranch" dir="ltr" autocomplete="off" placeholder="main"></div>
+      <div><label class="field-lbl" for="fToken">التوكن (Fine-grained token)</label><input class="field-input" id="fToken" dir="ltr" type="password" autocomplete="off" placeholder="github_pat_..."></div>
+    </div>
+    <label class="adm-check"><input type="checkbox" id="fRemember"> تذكّر التوكن على هذا الجهاز</label>
+    <div class="adm-row"><button class="btn-fire" id="btnConnect" type="button">اتصال</button><button class="adm-btn-ghost" id="btnForget" type="button">مسح التوكن من هذا الجهاز</button></div>
+    <p class="adm-err" id="setupErr" hidden></p>
+    <details class="adm-help">
+      <summary>كيف أنشئ التوكن؟</summary>
+      <ol>
+        <li>GitHub ← Settings ← Developer settings ← Personal access tokens ← <b>Fine-grained tokens</b> ← Generate new token.</li>
+        <li>Repository access: <b>Only select repositories</b> واختر مستودع الموقع فقط.</li>
+        <li>Permissions ← Repository permissions ← <b>Contents: Read and write</b>.</li>
+        <li>انسخ التوكن والصقه هنا. يُحفظ في متصفحك فقط ولا يُرسل إلا إلى api.github.com.</li>
+      </ol>
+      <p class="adm-muted">أي شخص يفتح هذه الصفحة بدون التوكن لا يستطيع تعديل شيء. استخدم "مسح التوكن" إذا كان الجهاز مشتركاً.</p>
+    </details>
+  </section>
+
+  <!-- dashboard -->
+  <section id="dash" hidden>
+    <div class="adm-stats" id="stats"></div>
+    <div class="adm-pending" id="pending" hidden></div>
+    <div class="adm-toolbar">
+      <input class="field-input" id="q" type="search" placeholder="ابحث بالاسم أو رقم المنتج..." autocomplete="off">
+      <select class="field-input" id="catFilter" aria-label="القسم"></select>
+      <button class="btn-fire" id="btnAdd" type="button">＋ إضافة منتج</button>
+    </div>
+    <div class="adm-grid" id="grid"></div>
+    <p class="adm-muted adm-foot">اللوحة تدير منتجات الأقسام الأربعة. أقسام الترند والأكثر مبيعاً والخصومات تُبنى تلقائياً من المنتجات، وقسم IoT "قريباً".</p>
+  </section>
+</main>
+
+<div id="editorHost"></div>
+<div class="adm-toast" id="toast" role="status" aria-live="polite"></div>
+
+<input type="file" id="fileInput" accept="image/*" multiple hidden>
+<script src="admin.js"></script>
+</body>
+</html>

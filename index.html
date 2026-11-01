@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <meta name="description" content="دراغون ستور — متجر متخصص بالطباعة ثلاثية الأبعاد: مجسمات فنية، أدوات، هدايا، وطلبات تصميم مخصصة بدقة عالية وشحن سريع.">
+  <meta name="theme-color" content="#08080b">
+  <meta property="og:title" content="DRAGON STORE — متجر التنين">
+  <meta property="og:description" content="متجر دراغون للطباعة ثلاثية الأبعاد — دقة متناهية، إبداع بلا حدود.">
+  <meta property="og:type" content="website">
+  <title>DRAGON STORE — متجر التنين</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <link rel="icon" type="image/png" href="assets/images/brand/dragon-logo.png">
+  <link rel="apple-touch-icon" href="assets/images/brand/dragon-logo.png">
+  <link rel="preload" as="image" href="assets/images/hero/hero-01-store.jpg" fetchpriority="high">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="root">
+  <div class="boot-loader">
+    <div class="boot-ring"></div>
+    <div class="boot-logo">DRAGON STORE</div>
+    <div class="boot-sub" id="bootSub">جاري التحميل...</div>
+  </div>
+</div>
+<script>
+(function(){
+  var msgs=[
+    'جاري التحميل...',
+    'الاتصال يبدو بطيئاً — الصفحة تحتوي صوراً كثيرة، يرجى الانتظار...',
+    'ما زلنا نُحمّل المنتجات، شكراً لصبرك...'
+  ];
+  var i=0;
+  var timers=[
+    setTimeout(function(){var el=document.getElementById('bootSub');if(el){i=1;el.textContent=msgs[1];}},6000),
+    setTimeout(function(){var el=document.getElementById('bootSub');if(el){i=2;el.textContent=msgs[2];}},14000)
+  ];
+})();
+</script>
+<div class="ambient-glow" aria-hidden="true">
+  <div class="glow-blob b1"></div>
+  <div class="glow-blob b2"></div>
+  <div class="glow-blob b3"></div>
+</div>
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <defs>
+    <linearGradient id="fireGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FF5500"/><stop offset="100%" stop-color="#FF8800"/></linearGradient>
+    <linearGradient id="fireGradientHeader" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FF5500"/><stop offset="100%" stop-color="#FF8800"/></linearGradient>
+    <linearGradient id="fbGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FF5500"/><stop offset="100%" stop-color="#FF8800"/></linearGradient>
+    <linearGradient id="instaGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FF5500"/><stop offset="100%" stop-color="#FF8800"/></linearGradient>
+  </defs>
+</svg>
+<script src="js/icons.js"></script>
+<script src="js/data.js"></script>
+<script src="js/components.js"></script>
+<script src="js/app.js"></script>
+<script src="js/main.js"></script>
+<script src="js/scroll-drag.js"></script>
+</body>
+</html>
