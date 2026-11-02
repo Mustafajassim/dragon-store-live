@@ -1308,6 +1308,21 @@
       ]
     },
     {
+      "id": "artistic-29",
+      "productNumber": 135,
+      "categoryId": "artistic",
+      "slug": "goku-kamehameha-charge-anime-dbz-statue",
+      "name": "Goku Kamehameha Charge Anime DBZ Statue",
+      "weightGrams": 75,
+      "price": 10000,
+      "material": "PLA Premium",
+      "images": [
+        "assets/images/products/artistic/artistic-goku-kamehameha-charge-anime-dbz-statue-01.jpg",
+        "assets/images/products/artistic/artistic-goku-kamehameha-charge-anime-dbz-statue-02.jpg",
+        "assets/images/products/artistic/artistic-goku-kamehameha-charge-anime-dbz-statue-03.jpg"
+      ]
+    },
+    {
       "id": "tools-0",
       "productNumber": 88,
       "categoryId": "tools",
