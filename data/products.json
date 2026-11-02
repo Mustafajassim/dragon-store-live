@@ -1323,6 +1323,21 @@
       ]
     },
     {
+      "id": "artistic-30",
+      "productNumber": 136,
+      "categoryId": "artistic",
+      "slug": "sad-goku-figurine-sitting-on-a-ledge",
+      "name": "Sad Goku Figurine Sitting on a ledge!",
+      "weightGrams": 32,
+      "price": 5000,
+      "material": "PLA Premium",
+      "images": [
+        "assets/images/products/artistic/artistic-sad-goku-figurine-sitting-on-a-ledge-01.jpg",
+        "assets/images/products/artistic/artistic-sad-goku-figurine-sitting-on-a-ledge-02.jpg",
+        "assets/images/products/artistic/artistic-sad-goku-figurine-sitting-on-a-ledge-03.jpg"
+      ]
+    },
+    {
       "id": "tools-0",
       "productNumber": 88,
       "categoryId": "tools",
