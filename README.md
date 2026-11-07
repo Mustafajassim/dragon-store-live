@@ -7,6 +7,8 @@ is now a normal project: **assets / data / css / js**. CSS, markup and render co
 dragon-store/
 ├─ index.html                 shell: <head>, boot loader, SVG gradients, script tags
 ├─ css/styles.css             the original <style> block, byte-for-byte
+├─ css/pro.css                professional layer: image fade-in, floating buttons, lite mode, accessibility
+├─ manifest.webmanifest · robots.txt · sitemap.xml · 404.html
 ├─ js/
 │  ├─ icons.js                icon library (verbatim)
 │  ├─ data.js                 fetchData(), buildCatalog(), assetUrl()
@@ -50,8 +52,12 @@ Add / edit / delete products from the browser — it reads and writes the same `
 * **Nothing goes live until you press «نشر التغييرات»:** all staged changes become ONE commit
   (`products.json`, `data.fallback.js`, new and removed images). GitHub Pages then rebuilds (~1 min).
   If someone changed `products.json` after you opened the dashboard, publishing is refused instead of overwriting it.
-* Managed: the four real categories. Trending / Best sellers / Discounts are derived automatically
-  (e.g. any product ≥ 100 g appears in Discounts); IoT stays "coming soon".
+* **Pricing («$ التسعير»):** edit the price per gram, small-weight tiers (e.g. under 100 g → 130/g) and the rounding step,
+  with a live preview; optionally re-price all (or one section's) products with the new rule. Saved in `store.json → pricing`.
+* **Sections («▤ الأقسام»):** reorder (order = page order + nav pills), rename, change icon/description, hide/show, add new sections
+  and delete sections (their products can be moved to another section or deleted). Trending / Best sellers / Discounts are
+  automatic — hide them instead of deleting. New sections get their own image folder `assets/images/products/<slug>/`.
+* Trending / Best sellers / Discounts are derived automatically (e.g. any product ≥ 100 g appears in Discounts).
 
 ## Naming convention
 `assets/images/products/<category-slug>/<category-slug>-<product-slug>-<NN>.jpg`
@@ -79,3 +85,12 @@ the rules in `store.json → collections`, exactly like the legacy code (Trendin
 * 33 gallery slots are byte-identical to another slot (the same photo used 2–3× for a product). They were kept as
   separate files so each slot can later be replaced independently; `image-map.json → identicalTo` lists them.
 * Images are the original bytes (no re-compression), so nothing changed visually.
+
+## Performance / "lite" mode
+Heavy blur & animation effects are switched off automatically when the page renders slowly (e.g. a very large 2K/4K screen with a busy GPU),
+and the full-screen blur behind pop-ups is disabled on screens wider than 1600 px. Force it with `?lite=1` on the URL (`?lite=0` disables the check).
+The page is also marked `translate="no"` so browser auto-translate cannot break the interface, and a friendly reload screen is shown if the UI ever errors.
+
+## SEO / sharing
+`index.html` contains Open Graph / Twitter tags, canonical URL and JSON-LD for the store using
+`https://mustafajassim.github.io/dragon-store-live/` — change these URLs (and `sitemap.xml`, `robots.txt`) if you move to a custom domain.

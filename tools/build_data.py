@@ -40,6 +40,20 @@ for p in products:
     for img in p.get('images', []):
         if not os.path.isfile(os.path.join(ROOT, store.get('assetBase', '') + img)): errors.append(f'{pid}: missing file {img}')
 
+ICONS = {'trend','flame','tag','gift','palette','gear','cpu','joystick','star','heart','box','wrench','bolt','crown'}
+seen_ids, seen_slugs = set(), set()
+for c in store['categories']:
+    if not c.get('name', '').strip(): errors.append(f'category {c.get("id")}: empty name')
+    if c['id'] in seen_ids: errors.append(f'duplicate category id: {c["id"]}')
+    if c.get('slug') in seen_slugs: errors.append(f'duplicate category slug: {c.get("slug")}')
+    seen_ids.add(c['id']); seen_slugs.add(c.get('slug'))
+    if c['id'] == 'all': errors.append('category id "all" is reserved')
+    if c.get('icon') not in ICONS: errors.append(f'category {c["id"]}: unknown icon {c.get("icon")}')
+    if c.get('navIcon') and c['navIcon'] not in ICONS: errors.append(f'category {c["id"]}: unknown navIcon {c["navIcon"]}')
+if 'allProducts' not in store.get('labels', {}): errors.append('store.json: labels.allProducts is missing')
+pr = store.get('pricing', {})
+if not isinstance(pr.get('defaultPerGram'), int) or pr['defaultPerGram'] < 1: errors.append('pricing.defaultPerGram must be a positive integer')
+
 for s in store['hero']['slides']:
     if not os.path.isfile(os.path.join(ROOT, s['image'])): errors.append(f'hero: missing file {s["image"]}')
 if not os.path.isfile(os.path.join(ROOT, store['brand']['logo'])): errors.append('brand logo missing')

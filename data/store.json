@@ -14,7 +14,8 @@
     "instagram": "https://www.instagram.com/drag.0nstore?igsh=MTBjMTNodDZlc2NsZQ=="
   },
   "labels": {
-    "priceTbd": "السعر قيد التحديد"
+    "priceTbd": "السعر قيد التحديد",
+    "allProducts": "كل المنتجات"
   },
   "pricing": {
     "currency": "د.ع",
@@ -67,14 +68,16 @@
       "name": "الترند",
       "slogan": "الأكثر رواجاً وطلباً هذا الأسبوع في متجر التنين",
       "icon": "trend",
-      "shared": true
+      "shared": true,
+      "navIcon": "trend"
     },
     {
       "id": "camping",
       "slug": "gaming",
       "name": "Gamming",
       "slogan": "تجهيزات طباعة عملية لعشاق الألعاب والتقنية",
-      "icon": "joystick"
+      "icon": "joystick",
+      "navIcon": "joystick"
     },
     {
       "id": "best-sellers",
@@ -139,46 +142,6 @@
       "id": "discounts",
       "strategy": "min-weight",
       "minWeightGrams": 100
-    }
-  ],
-  "nav": [
-    {
-      "id": "trending",
-      "label": "الترند",
-      "icon": "trend"
-    },
-    {
-      "id": "camping",
-      "label": "Gamming",
-      "icon": "joystick"
-    },
-    {
-      "id": "best-sellers",
-      "label": "الأكثر مبيعاً"
-    },
-    {
-      "id": "discounts",
-      "label": "الخصومات"
-    },
-    {
-      "id": "gifts",
-      "label": "الهدايا"
-    },
-    {
-      "id": "artistic",
-      "label": "المجسمات الفنية"
-    },
-    {
-      "id": "tools",
-      "label": "الأدوات"
-    },
-    {
-      "id": "iot",
-      "label": "مشاريع IOT"
-    },
-    {
-      "id": "all",
-      "label": "كل المنتجات"
     }
   ]
 }

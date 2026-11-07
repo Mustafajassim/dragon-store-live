@@ -45,7 +45,7 @@ async function fetchData(){
 }
 
 function buildCatalog(store,records){
-  const cats=store.categories;
+  const cats=store.categories.filter(c=>!c.hidden);   // hidden sections (and their products) are not shown in the storefront
   const realCats=cats.filter(c=>!c.shared&&!c.comingSoon);
   const fallbackImages=(store.fallbackImages.product||[]).map(assetUrl);
   const all=[];

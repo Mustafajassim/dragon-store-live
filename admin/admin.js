@@ -15,7 +15,7 @@ const MIN_IMAGES = 3, MAX_IMAGES = 8;
 const MAX_SIDE = 1000, JPEG_QUALITY = 0.85;
 
 const S = A.state = {
-  cfg: null, store: null, doc: null, baseText: '', products: [],
+  cfg: null, store: null, storeBaseText: '', doc: null, baseText: '', products: [], sheet: null,
   pendingFiles: new Map(),   // path → base64 (new images waiting to be committed)
   pendingDeletes: new Set(), // path → existing repo images to delete
   previews: new Map(),       // path → data URL (so new images show before GitHub Pages rebuilds)
@@ -46,8 +46,8 @@ function slugify(s, maxlen = 48) {
 A.slugify = slugify;
 
 /* price rule lives in store.json → pricing (same rule the existing catalogue was priced with) */
-function calcPrice(w) {
-  const p = S.store.pricing || { roundUpTo: 1000, tiers: [{ belowGrams: 100, perGram: 130 }], defaultPerGram: 100 };
+function calcPrice(w, rule) {
+  const p = rule || S.store.pricing || { roundUpTo: 1000, tiers: [{ belowGrams: 100, perGram: 130 }], defaultPerGram: 100 };
   const tier = (p.tiers || []).find(t => w < t.belowGrams);
   const per = tier ? tier.perGram : p.defaultPerGram;
   const r = p.roundUpTo || 1;
@@ -106,6 +106,8 @@ async function connect() {
       gh(`/contents/data/products.json?ref=${ref}`, { raw: true })
     ]);
     S.store = JSON.parse(storeText);
+    S.storeBaseText = storeText;
+    S.sheet = null;
     S.baseText = prodText;
     S.doc = JSON.parse(prodText);
     S.products = JSON.parse(prodText).products;
@@ -129,10 +131,11 @@ function openSetup(err) {
 
 /* ───────── rendering ───────── */
 function fillCatFilter() {
+  if (S.cat !== 'all' && !realCats().some(c => c.id === S.cat)) S.cat = 'all';
   $('#catFilter').innerHTML = '<option value="all">كل الأقسام</option>' + realCats().map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   $('#catFilter').value = S.cat;
 }
-function renderAll() { renderStats(); renderPending(); renderGrid(); }
+function renderAll() { fillCatFilter(); renderStats(); renderPending(); renderGrid(); }
 
 function renderStats() {
   const mine = S.products.filter(isManaged);
@@ -194,6 +197,7 @@ A.addFiles = async function (files) {
 
 /* ───────── editor ───────── */
 function openEditor(id) {
+  if (!realCats().length) { toast('أضف قسماً أولاً من زر «الأقسام».', 'err'); return; }
   const p = id ? S.products.find(x => x.id === id) : null;
   const cats = realCats();
   S.editor = {
@@ -209,7 +213,7 @@ function openEditor(id) {
     <div class="adm-sheet-hdr"><h2>${p ? 'تعديل منتج' + ` <span class="adm-muted"><bdi>#${p.productNumber}</bdi></span>` : 'إضافة منتج جديد'}</h2><button class="icon-btn" type="button" data-close aria-label="إغلاق">✕</button></div>
     <div class="adm-sheet-body">
       <div><label class="field-lbl" for="eName">اسم المنتج</label><input class="field-input" id="eName" value="${esc(E.name)}" autocomplete="off" maxlength="90" placeholder="مثال: Kratos Ghost of Sparta"></div>
-      <div><label class="field-lbl" for="eCat">القسم</label><select class="field-input" id="eCat">${cats.map(c => `<option value="${esc(c.id)}" ${c.id === E.categoryId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label class="field-lbl" for="eCat">القسم</label><select class="field-input" id="eCat">${cats.map(c => `<option value="${esc(c.id)}" ${c.id === E.categoryId ? 'selected' : ''}>${esc(c.name)}${c.hidden ? ' (مخفي)' : ''}</option>`).join('')}</select></div>
       <div class="adm-two">
         <div><label class="field-lbl" for="eWeight">الوزن (غرام)</label><input class="field-input" id="eWeight" inputmode="numeric" value="${esc(E.weight)}" placeholder="مثال: 120"></div>
         <div><label class="field-lbl" for="ePrice">السعر (دينار عراقي)</label><input class="field-input" id="ePrice" inputmode="numeric" value="${esc(E.price)}" placeholder="يُحسب تلقائياً"></div>
@@ -228,7 +232,7 @@ function openEditor(id) {
   $('#eName').focus();
 }
 A.openEditor = openEditor;
-function closeEditor() { $('#editorHost').innerHTML = ''; S.editor = null; }
+function closeEditor() { $('#editorHost').innerHTML = ''; S.editor = null; S.sheet = null; }
 
 function renderEditorImages() {
   const E = S.editor; if (!E) return;
@@ -344,9 +348,12 @@ async function publish() {
   const btn = $('#btnPublish'); if (btn) { btn.disabled = true; btn.textContent = 'جاري النشر...'; }
   try {
     const br = encodeURIComponent(S.cfg.branch);
-    // 1) make sure nobody changed products.json since we loaded it
-    const remoteText = await gh(`/contents/data/products.json?ref=${br}`, { raw: true });
-    if (remoteText !== S.baseText) throw new Error('تم تعديل المنتجات في المستودع من مكان آخر بعد تحميل اللوحة. اضغط «تجاهل الكل» ثم أعد التحميل وكرّر التعديل حتى لا تُكتب فوق تعديلات الآخرين.');
+    // 1) make sure nobody changed the data files since we loaded them
+    const [remoteProducts, remoteStore] = await Promise.all([
+      gh(`/contents/data/products.json?ref=${br}`, { raw: true }),
+      gh(`/contents/data/store.json?ref=${br}`, { raw: true })
+    ]);
+    if (remoteProducts !== S.baseText || remoteStore !== S.storeBaseText) throw new Error('تم تعديل بيانات الموقع في المستودع من مكان آخر بعد تحميل اللوحة. اضغط «تجاهل الكل» ثم أعد التحميل وكرّر التعديل حتى لا تُكتب فوق تعديلات الآخرين.');
     const ref = await gh(`/git/ref/heads/${br}`);
     const head = ref.object.sha;
     const commit = await gh(`/git/commits/${head}`);
@@ -369,8 +376,10 @@ async function publish() {
     // 3) data files
     const doc = { ...S.doc, products: S.products };
     const text = JSON.stringify(doc, null, 2);
+    const storeText = JSON.stringify(S.store, null, 2);
     const fallback = '/* AUTO-GENERATED by the dashboard / tools/build_data.py — do not edit. Used only for file:// previews. */\nwindow.__DRAGON_DATA__=' + JSON.stringify({ store: S.store, products: doc }) + ';\n';
     tree.push({ path: 'data/products.json', mode: '100644', type: 'blob', content: text });
+    if (storeText !== S.storeBaseText) tree.push({ path: 'data/store.json', mode: '100644', type: 'blob', content: storeText });
     tree.push({ path: 'data/data.fallback.js', mode: '100644', type: 'blob', content: fallback });
     S.pendingDeletes.forEach(path => tree.push({ path, mode: '100644', type: 'blob', sha: null }));
 
@@ -380,7 +389,7 @@ async function publish() {
     const nc = await gh('/git/commits', { method: 'POST', body: { message: msg, tree: nt.sha, parents: [head] } });
     await gh(`/git/refs/heads/${br}`, { method: 'PATCH', body: { sha: nc.sha } });
 
-    S.baseText = text; S.doc = doc;
+    S.baseText = text; S.doc = doc; S.storeBaseText = storeText;
     S.pendingFiles.clear(); S.pendingDeletes.clear(); S.touched.clear(); S.log = [];
     renderAll();
     toast('✓ تم النشر. سيظهر التحديث في الموقع خلال دقيقة تقريباً (GitHub Pages).');
@@ -395,6 +404,194 @@ async function discard() {
   await connect();
 }
 
+/* ───────── store.json editing: pricing rule + sections ───────── */
+const ICONS = [['trend', '📈', 'رسم صاعد'], ['flame', '🔥', 'شعلة'], ['tag', '🏷️', 'وسم / خصم'], ['gift', '🎁', 'هدية'], ['palette', '🎨', 'لوحة ألوان'], ['gear', '⚙️', 'ترس'], ['cpu', '🔌', 'إلكترونيات'], ['joystick', '🎮', 'يد ألعاب'], ['star', '⭐', 'نجمة'], ['heart', '❤️', 'قلب'], ['box', '📦', 'صندوق'], ['wrench', '🔧', 'مفتاح ربط'], ['bolt', '⚡', 'برق'], ['crown', '👑', 'تاج']];
+const iconEmoji = k => (ICONS.find(i => i[0] === k) || ['', '▣'])[1];
+const ROUND_STEPS = [1, 10, 100, 250, 500, 1000];
+const logOnce = msg => { if (!S.log.includes(msg)) S.log.push(msg); };
+const catCount = c => S.products.filter(p => p.categoryId === c.id).length;
+const setOpt = (o, k, v) => { if (v) o[k] = v; else delete o[k]; };
+
+function openSheet(type, title, body, footer) {
+  S.editor = null; S.sheet = { type, view: 'main', id: null };
+  $('#editorHost').innerHTML = `<div class="ovl adm-ovl" id="sheet"><div class="adm-sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="adm-sheet-hdr"><h2>${esc(title)}</h2><button class="icon-btn" type="button" data-close aria-label="إغلاق">✕</button></div>
+    <div class="adm-sheet-body" id="sheetBody">${body}</div><div class="adm-sheet-ftr" id="sheetFtr">${footer}</div></div></div>`;
+}
+function setSheet(title, body, footer, keepScroll) {
+  const bd = $('#sheetBody'), y = bd.scrollTop;
+  $('#sheet .adm-sheet-hdr h2').textContent = title; bd.innerHTML = body; $('#sheetFtr').innerHTML = footer; bd.scrollTop = keepScroll ? y : 0;
+}
+
+/* ---- pricing ---- */
+const tierRowHTML = (th, pg) => `<div class="adm-tier"><span>أقل من</span><input class="field-input" data-tier="th" inputmode="numeric" value="${esc(th)}" aria-label="الوزن بالغرام"><span>غ ←</span><input class="field-input" data-tier="pg" inputmode="numeric" value="${esc(pg)}" aria-label="سعر الغرام"><span>د.ع/غ</span><button type="button" class="adm-btn-ghost" data-sec-act="tier-del" aria-label="حذف الشريحة">✕</button></div>`;
+function pricingBodyHTML(rule) {
+  return `<p class="adm-muted">السعر = الوزن × سعر الغرام، ثم يُقرَّب للأعلى. تُستخدم القاعدة لاقتراح السعر عند إضافة منتج أو تغيير وزنه (ويمكنك دائماً تعديل السعر يدوياً).</p>
+  <div><label class="field-lbl" for="pDef">سعر الغرام الافتراضي (د.ع)</label><input class="field-input" id="pDef" inputmode="numeric" value="${esc(rule.defaultPerGram)}"></div>
+  <div><label class="field-lbl">شرائح القطع الصغيرة <span class="adm-muted">(سعر غرام أعلى للأوزان الأقل)</span></label><div id="pTiers" class="adm-tiers">${(rule.tiers || []).map(t => tierRowHTML(t.belowGrams, t.perGram)).join('')}</div><button type="button" class="adm-btn-ghost" data-sec-act="tier-add">＋ إضافة شريحة</button></div>
+  <div><label class="field-lbl" for="pRound">تقريب السعر لأعلى إلى أقرب</label><select class="field-input" id="pRound">${ROUND_STEPS.map(r => `<option value="${r}" ${r === rule.roundUpTo ? 'selected' : ''}>${r.toLocaleString('en-US')} د.ع</option>`).join('')}</select></div>
+  <div><label class="field-lbl">معاينة</label><div class="adm-prev" id="pPrev"></div></div>
+  <div><label class="field-lbl" for="pScope">عند «حفظ وتطبيق» أعد تسعير</label><select class="field-input" id="pScope"><option value="all">كل المنتجات</option>${realCats().map(c => `<option value="${esc(c.id)}">${esc(c.name)} فقط</option>`).join('')}</select>
+  <div class="adm-hint"><b>تنبيه:</b> إعادة التسعير تستبدل الأسعار الحالية (حتى التي عدّلتها يدوياً) بالسعر المحسوب من الوزن.</div></div>
+  <p class="adm-err" id="pErr" hidden></p>`;
+}
+function openPricing() {
+  const rule = S.store.pricing || { roundUpTo: 1000, tiers: [{ belowGrams: 100, perGram: 130 }], defaultPerGram: 100 };
+  openSheet('pricing', 'قاعدة التسعير', pricingBodyHTML(rule),
+    '<button class="btn-fire" type="button" data-sec-act="p-apply">حفظ وتطبيق على المنتجات</button><button class="adm-btn-ghost" type="button" data-sec-act="p-save">حفظ القاعدة فقط</button><button class="adm-btn-ghost" type="button" data-close>إلغاء</button>');
+  updatePricingPreview();
+}
+function readPricingForm() {
+  const errs = [], num = v => (/^\d+$/.test(String(v).trim()) ? parseInt(v, 10) : NaN);
+  const def = num($('#pDef').value);
+  if (!(def > 0)) errs.push('سعر الغرام الافتراضي يجب أن يكون رقماً أكبر من 0.');
+  const tiers = [...document.querySelectorAll('#pTiers .adm-tier')].map(r => ({ belowGrams: num(r.querySelector('[data-tier=th]').value), perGram: num(r.querySelector('[data-tier=pg]').value) }));
+  tiers.forEach((t, i) => { if (!(t.belowGrams > 0) || !(t.perGram > 0)) errs.push(`الشريحة ${i + 1}: أدخل أرقاماً صحيحة أكبر من 0.`); });
+  if (new Set(tiers.map(t => t.belowGrams)).size !== tiers.length) errs.push('لا يمكن تكرار نفس حدّ الوزن في شريحتين.');
+  const rule = { currency: S.store.pricing?.currency || 'د.ع', roundUpTo: parseInt($('#pRound').value, 10), tiers: tiers.slice().sort((a, b) => a.belowGrams - b.belowGrams), defaultPerGram: def };
+  return { rule, errs };
+}
+function updatePricingPreview() {
+  const { rule, errs } = readPricingForm();
+  $('#pPrev').innerHTML = errs.length ? '<span class="adm-muted">أكمل الأرقام لتظهر المعاينة</span>' : [10, 25, 50, 99, 100, 250, 500].map(w => `<span><b>${w}g</b> ${fmtPrice(calcPrice(w, rule))}</span>`).join('');
+}
+function savePricing(apply) {
+  const { rule, errs } = readPricingForm(), box = $('#pErr');
+  if (errs.length) { box.hidden = false; box.innerHTML = errs.map(esc).join('<br>'); return; }
+  const scope = $('#pScope').value;
+  const ruleChanged = JSON.stringify(rule) !== JSON.stringify(S.store.pricing);
+  S.store.pricing = rule;
+  if (ruleChanged) logOnce('$ تعديل قاعدة التسعير');
+  let changed = 0;
+  if (apply) {
+    S.products.filter(p => isManaged(p) && (scope === 'all' || p.categoryId === scope) && p.weightGrams > 0).forEach(p => {
+      const np = calcPrice(p.weightGrams, rule);
+      if (np !== p.price) { p.price = np; changed++; if (S.touched.get(p.id) !== 'new') S.touched.set(p.id, 'edited'); }
+    });
+    if (changed) S.log.push(`$ إعادة تسعير ${changed} منتج${scope === 'all' ? '' : ' (' + (catById(scope)?.name || scope) + ')'}`);
+  }
+  closeEditor(); renderAll();
+  toast(apply ? `تم حفظ القاعدة وتغيير سعر ${changed} منتج. اضغط «نشر التغييرات» لتظهر في الموقع.` : (ruleChanged ? 'تم حفظ قاعدة التسعير. اضغط «نشر التغييرات».' : 'لا يوجد تغيير في القاعدة.'));
+}
+A.openPricing = openPricing; A.savePricing = savePricing;
+
+/* ---- sections ---- */
+function sectionsListHTML() {
+  const cats = S.store.categories;
+  const rows = cats.map((c, i) => {
+    const real = !c.shared && !c.comingSoon;
+    const badges = [c.shared ? 'تلقائي' : '', c.comingSoon ? 'قريباً' : '', c.hidden ? 'مخفي' : ''].filter(Boolean).map(b => `<span class="adm-badge ${b === 'مخفي' ? 'off' : ''}">${b}</span>`).join('');
+    const info = c.shared ? 'يُبنى تلقائياً من المنتجات' : `${catCount(c)} منتج`;
+    return `<div class="adm-sec ${c.hidden ? 'is-off' : ''}" data-id="${esc(c.id)}">
+      <div class="adm-sec-move"><button type="button" data-sec-act="up" ${i === 0 ? 'disabled' : ''} aria-label="للأعلى">▲</button><button type="button" data-sec-act="down" ${i === cats.length - 1 ? 'disabled' : ''} aria-label="للأسفل">▼</button></div>
+      <div class="adm-sec-info"><b>${iconEmoji(c.icon)} ${esc(c.name)}</b> ${badges}<div class="adm-muted">${info}</div></div>
+      <div class="adm-sec-btns"><button type="button" class="adm-btn-ghost" data-sec-act="edit">تعديل</button><button type="button" class="adm-btn-ghost" data-sec-act="toggle">${c.hidden ? 'إظهار' : 'إخفاء'}</button>${real ? '<button type="button" class="adm-btn-ghost adm-btn-danger" data-sec-act="del">حذف</button>' : ''}</div></div>`;
+  }).join('');
+  return `<p class="adm-muted">هذا الترتيب هو ترتيب الأقسام في الموقع وفي شريط التنقل. الأقسام التلقائية لا تُحذف لكن يمكن إخفاؤها.</p><div class="adm-secs">${rows}</div>`;
+}
+const SEC_LIST_FOOTER = '<button class="btn-fire" type="button" data-sec-act="new">＋ قسم جديد</button><button class="adm-btn-ghost" type="button" data-close>تم</button>';
+function openSections() { openSheet('sections', 'أقسام الموقع', sectionsListHTML(), SEC_LIST_FOOTER); }
+function showSectionsList(keepScroll) { S.sheet.view = 'main'; S.sheet.id = null; setSheet('أقسام الموقع', sectionsListHTML(), SEC_LIST_FOOTER, keepScroll); }
+A.openSections = openSections;
+
+function catFormHTML(c) {
+  const cur = c || { name: '', slogan: '', icon: 'star' };
+  return `<div><label class="field-lbl" for="cName">اسم القسم</label><input class="field-input" id="cName" value="${esc(cur.name)}" maxlength="40" autocomplete="off"></div>
+  <div><label class="field-lbl" for="cSlogan">وصف قصير تحت العنوان</label><input class="field-input" id="cSlogan" value="${esc(cur.slogan)}" maxlength="90" autocomplete="off"></div>
+  <div class="adm-two"><div><label class="field-lbl" for="cIcon">الأيقونة</label><select class="field-input" id="cIcon">${ICONS.map(i => `<option value="${i[0]}" ${i[0] === cur.icon ? 'selected' : ''}>${i[1]} ${i[2]}</option>`).join('')}</select></div>
+  <div><label class="field-lbl" for="cNav">نص زر التنقل (اختياري)</label><input class="field-input" id="cNav" value="${esc(cur.navLabel || '')}" maxlength="24" placeholder="مثل اسم القسم" autocomplete="off"></div></div>
+  <label class="adm-check"><input type="checkbox" id="cNavIcon" ${cur.navIcon ? 'checked' : ''}> إظهار الأيقونة على زر القسم في شريط التنقل</label>
+  ${c ? `<div class="adm-hint">المعرّف: <code>${esc(c.id)}</code> · مجلد الصور: <code>assets/images/products/${esc(c.slug)}/</code> — ثابتان حتى لا تنكسر الروابط المشتركة والسلات المحفوظة.</div>`
+      : `<div><label class="field-lbl" for="cSlug">معرّف إنجليزي (اسم مجلد الصور)</label><input class="field-input" id="cSlug" dir="ltr" placeholder="مثال: keychains" autocomplete="off"><div class="adm-hint">أحرف إنجليزية صغيرة وأرقام وشرطات فقط، ولا يمكن تغييره لاحقاً. إن تركته فارغاً يُولَّد تلقائياً من الاسم.</div></div>`}
+  <p class="adm-err" id="cErr" hidden></p>`;
+}
+function showCatForm(id) {
+  const c = id ? catById(id) : null;
+  S.sheet.view = 'form'; S.sheet.id = id || null;
+  setSheet(c ? `تعديل القسم: ${c.name}` : 'قسم جديد', catFormHTML(c), `<button class="btn-fire" type="button" data-sec-act="save">${c ? 'حفظ' : 'إنشاء القسم'}</button><button class="adm-btn-ghost" type="button" data-sec-act="back">رجوع</button>`);
+  $('#cName').focus();
+}
+function saveCat() {
+  const id = S.sheet.id, cats = S.store.categories;
+  const name = $('#cName').value.trim(), slogan = $('#cSlogan').value.trim(), icon = $('#cIcon').value, navLabel = $('#cNav').value.trim(), navIconOn = $('#cNavIcon').checked;
+  const errs = [];
+  if (!name) errs.push('اكتب اسم القسم.');
+  if (cats.some(c => c.id !== id && c.name.trim().toLowerCase() === name.toLowerCase())) errs.push('يوجد قسم بنفس الاسم.');
+  let slug = '';
+  if (!id) {
+    slug = $('#cSlug').value.trim().toLowerCase() || slugify(name);
+    if (!slug) { let n = cats.length + 1; while (cats.some(c => c.id === 'section-' + n)) n++; slug = 'section-' + n; }
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) errs.push('المعرّف الإنجليزي: أحرف إنجليزية صغيرة وأرقام وشرطات فقط.');
+    else if (slug === 'all' || cats.some(c => c.id === slug || c.slug === slug)) errs.push('هذا المعرّف مستخدم، اختر معرّفاً آخر.');
+  }
+  const box = $('#cErr');
+  if (errs.length) { box.hidden = false; box.innerHTML = errs.map(esc).join('<br>'); return; }
+  if (id) {
+    const c = catById(id);
+    Object.assign(c, { name, slogan, icon }); setOpt(c, 'navLabel', navLabel); setOpt(c, 'navIcon', navIconOn ? icon : '');
+    S.log.push(`▤ تعديل قسم: ${name}`);
+  } else {
+    const c = { id: slug, slug, name, slogan, icon }; setOpt(c, 'navIcon', navIconOn ? icon : ''); setOpt(c, 'navLabel', navLabel);
+    let at = -1; cats.forEach((x, i) => { if (!x.shared && !x.comingSoon) at = i; });
+    if (at < 0) cats.push(c); else cats.splice(at + 1, 0, c);
+    S.log.push(`▤ قسم جديد: ${name}`);
+  }
+  renderAll(); showSectionsList(); toast('تم الحفظ. اضغط «نشر التغييرات» لتظهر في الموقع.');
+}
+function delCatHTML(c) {
+  const n = catCount(c), others = realCats().filter(x => x.id !== c.id);
+  if (!n) return `<p>حذف القسم «<b>${esc(c.name)}</b>»؟ لا توجد فيه منتجات.</p>`;
+  return `<p>القسم «<b>${esc(c.name)}</b>» فيه <b>${n}</b> منتج. ماذا تفعل بها؟</p>
+  <label class="adm-radio"><input type="radio" name="dmode" value="move" ${others.length ? 'checked' : 'disabled'}> <span>نقلها إلى قسم:</span> <select class="field-input" id="dTarget" ${others.length ? '' : 'disabled'}>${others.map(o => `<option value="${esc(o.id)}">${esc(o.name)}</option>`).join('')}</select></label>
+  <label class="adm-radio"><input type="radio" name="dmode" value="delete" ${others.length ? '' : 'checked'}> <span>حذفها نهائياً مع صورها</span></label>`;
+}
+function showDelCat(id) {
+  const c = catById(id); S.sheet.view = 'del'; S.sheet.id = id;
+  setSheet(`حذف القسم: ${c.name}`, delCatHTML(c), '<button class="btn-fire adm-danger-fill" type="button" data-sec-act="del-ok">تأكيد الحذف</button><button class="adm-btn-ghost" type="button" data-sec-act="back">رجوع</button>');
+}
+function doDelCat() {
+  const c = catById(S.sheet.id), n = catCount(c);
+  const mode = n ? (document.querySelector('input[name=dmode]:checked')?.value || 'delete') : 'none';
+  let note = '';
+  if (mode === 'move') {
+    const target = catById($('#dTarget').value);
+    S.products.filter(p => p.categoryId === c.id).forEach(p => { p.categoryId = target.id; if (S.touched.get(p.id) !== 'new') S.touched.set(p.id, 'edited'); });
+    note = ` (نقل ${n} منتج إلى ${target.name})`;
+  } else if (mode === 'delete') {
+    const gone = S.products.filter(p => p.categoryId === c.id);
+    S.products = S.products.filter(p => p.categoryId !== c.id);
+    gone.forEach(p => { p.images.forEach(dropImagePath); S.touched.delete(p.id); S.log = S.log.filter(l => !l.endsWith(` #${p.productNumber}`)); });
+    note = ` (حذف ${n} منتج)`;
+  }
+  S.store.categories = S.store.categories.filter(x => x.id !== c.id);
+  S.log.push(`▤ حذف قسم: ${c.name}${note}`);
+  renderAll(); showSectionsList(); toast('تم حذف القسم محلياً. اضغط «نشر التغييرات» لتطبيقه.');
+}
+
+/* one click handler for everything inside the pricing / sections sheet */
+function sheetClick(e) {
+  const t = e.target;
+  if (t.closest('[data-close]')) return closeEditor();
+  const b = t.closest('[data-sec-act]'); if (!b) return;
+  const act = b.dataset.secAct, row = b.closest('.adm-sec'), id = row?.dataset.id;
+  if (act === 'tier-add') { $('#pTiers').insertAdjacentHTML('beforeend', tierRowHTML('', '')); return updatePricingPreview(); }
+  if (act === 'tier-del') { b.closest('.adm-tier').remove(); return updatePricingPreview(); }
+  if (act === 'p-save') return savePricing(false);
+  if (act === 'p-apply') return savePricing(true);
+  if (act === 'new') return showCatForm(null);
+  if (act === 'edit') return showCatForm(id);
+  if (act === 'del') return showDelCat(id);
+  if (act === 'back') return showSectionsList();
+  if (act === 'save') return saveCat();
+  if (act === 'del-ok') return doDelCat();
+  const cats = S.store.categories, i = cats.findIndex(c => c.id === id);
+  if (act === 'toggle') { const c = cats[i]; setOpt(c, 'hidden', !c.hidden); S.log.push(`▤ ${c.hidden ? 'إخفاء' : 'إظهار'} قسم: ${c.name}`); }
+  else if (act === 'up' && i > 0) { [cats[i - 1], cats[i]] = [cats[i], cats[i - 1]]; logOnce('▤ ترتيب الأقسام'); }
+  else if (act === 'down' && i < cats.length - 1) { [cats[i + 1], cats[i]] = [cats[i], cats[i + 1]]; logOnce('▤ ترتيب الأقسام'); }
+  renderAll(); showSectionsList(true);
+}
+A.sheetClick = sheetClick;
+
 /* ───────── events ───────── */
 function bind() {
   $('#btnConnect').onclick = () => {
@@ -408,6 +605,8 @@ function bind() {
     openSetup('');
   };
   $('#btnAdd').onclick = () => openEditor(null);
+  $('#btnSections').onclick = openSections;
+  $('#btnPricing').onclick = openPricing;
   $('#q').oninput = e => { S.q = e.target.value; renderGrid(); };
   $('#catFilter').onchange = e => { S.cat = e.target.value; renderGrid(); };
   $('#fileInput').onchange = e => { A.addFiles([...e.target.files]); e.target.value = ''; };
@@ -419,6 +618,7 @@ function bind() {
     const card = t.closest('.adm-card');
     if (card && t.closest('[data-act="edit"]')) return openEditor(card.dataset.id);
     if (card && t.closest('[data-act="delete"]')) return deleteProduct(card.dataset.id);
+    if (S.sheet) return sheetClick(e);
     if (!S.editor) return;
     if (t.closest('[data-close]')) return closeEditor();
     if (t.closest('#eSave')) return saveEditor();
@@ -447,7 +647,9 @@ function bind() {
     } else if (id === 'ePrice') { E.price = e.target.value; E.priceTouched = true; refreshEditorState(); }
   });
   document.addEventListener('change', e => { if (S.editor && e.target.id === 'eCat') S.editor.categoryId = e.target.value; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.editor) closeEditor(); });
+  document.addEventListener('input', e => { if (S.sheet && S.sheet.type === 'pricing' && e.target.closest('#sheet')) updatePricingPreview(); });
+  document.addEventListener('change', e => { if (S.sheet && S.sheet.type === 'pricing' && e.target.id === 'pRound') updatePricingPreview(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && (S.editor || S.sheet)) closeEditor(); });
   window.addEventListener('beforeunload', e => { if (pendingCount()) { e.preventDefault(); e.returnValue = ''; } });
 }
 

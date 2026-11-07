@@ -1,0 +1,27 @@
+{
+  "name": "DRAGON STORE — متجر التنين",
+  "short_name": "Dragon Store",
+  "description": "متجر متخصص بالطباعة ثلاثية الأبعاد",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#08080b",
+  "theme_color": "#08080b",
+  "icons": [
+    {
+      "src": "assets/images/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/images/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

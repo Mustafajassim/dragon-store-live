@@ -1,0 +1,37 @@
+/* PRO LAYER — additions on top of styles.css (styles.css itself is untouched). */
+
+/* image fade-in */
+.pcard-img img{opacity:0;transition:transform .5s var(--ease),opacity .45s var(--ease)}
+.pcard-img img.is-loaded{opacity:1}
+
+/* floating buttons */
+.fab-stack{position:fixed;left:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:45;display:flex;flex-direction:column;align-items:center;gap:10px}
+.fab{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.12);cursor:pointer;color:#fff;text-decoration:none;box-shadow:0 10px 26px rgba(0,0,0,.5);transition:transform .2s var(--ease),opacity .25s var(--ease),box-shadow .2s var(--ease)}
+.fab:hover{transform:translateY(-3px) scale(1.05)}
+.fab-wa{width:54px;height:54px;background:#25D366;border-color:rgba(255,255,255,.25);box-shadow:0 10px 28px rgba(37,211,102,.35),0 6px 18px rgba(0,0,0,.45)}
+.fab-top{background:rgba(24,24,28,.92);opacity:0;pointer-events:none;transform:translateY(10px)}
+.fab-top.show{opacity:1;pointer-events:auto;transform:none}
+.fab-top.show:hover{transform:translateY(-3px) scale(1.05)}
+
+/* keyboard accessibility */
+:focus-visible{outline:2px solid var(--f2);outline-offset:2px}
+input:focus-visible,textarea:focus-visible{outline:none}
+
+/* very large screens: avoid full-screen blur on overlays (most expensive effect for the GPU) */
+@media (min-width:1600px){
+  .ovl,.cart-ovl{background:rgba(0,0,0,.88);backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+/* while a modal / the cart is open the decorative background animations are not needed */
+body.modal-open .ambient-glow,body.modal-open .embers{display:none}
+
+/* LITE mode (auto-enabled on slow rendering, or ?lite=1) */
+html.lite *,html.lite *::before,html.lite *::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html.lite .ambient-glow,html.lite .embers{display:none!important}
+html.lite .ovl,html.lite .cart-ovl{background:rgba(0,0,0,.9)}
+html.lite .ovl,html.lite .modal,html.lite .cart-ovl{animation-duration:.01s!important}
+html.lite *{animation-iteration-count:1!important}
+
+/* respect the OS "reduce motion" setting */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
