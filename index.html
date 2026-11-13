@@ -19,16 +19,16 @@
   <link rel="canonical" href="https://mustafajassim.github.io/dragon-store-live/">
   <link rel="manifest" href="manifest.webmanifest">
   <title>DRAGON STORE — متجر التنين</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/images/brand/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/images/brand/icon-192.png">
   <link rel="apple-touch-icon" href="assets/images/brand/apple-touch-icon.png">
   <link rel="preload" as="image" href="assets/images/hero/hero-01-store.jpg" fetchpriority="high">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/tajawal-arabic-700-normal.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="assets/fonts/tajawal-arabic-400-normal.woff2">
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/utilities.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/pro.css">
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Store", "name": "Dragon Store", "alternateName": "متجر التنين", "url": "https://mustafajassim.github.io/dragon-store-live/", "logo": "https://mustafajassim.github.io/dragon-store-live/assets/images/brand/icon-512.png", "image": "https://mustafajassim.github.io/dragon-store-live/assets/images/hero/hero-01-store.jpg", "description": "متجر متخصص بالطباعة ثلاثية الأبعاد: مجسمات فنية، أدوات، هدايا، وطلبات تصميم مخصصة بدقة عالية وشحن سريع.", "telephone": "+9647877477701", "areaServed": {"@type": "Country", "name": "Iraq"}, "priceRange": "IQD", "sameAs": ["https://www.facebook.com/share/1Ub9cWAjQP/", "https://www.instagram.com/drag.0nstore?igsh=MTBjMTNodDZlc2NsZQ=="]}</script>
@@ -69,8 +69,10 @@
   </defs>
 </svg>
 <script src="js/icons.js"></script>
+<script src="js/defaults.js"></script>
 <script src="js/data.js"></script>
 <script src="js/components.js"></script>
+<script src="js/extras.js"></script>
 <script src="js/app.js"></script>
 <script src="js/main.js"></script>
 <script src="js/scroll-drag.js"></script>

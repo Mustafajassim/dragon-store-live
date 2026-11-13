@@ -36,6 +36,9 @@ for p in products:
         if not isinstance(p.get('price'), int) or p['price'] <= 0: errors.append(f'{pid}: price must be a positive integer')
         if not isinstance(p.get('weightGrams'), int): errors.append(f'{pid}: weightGrams must be an integer')
         if not p.get('productNumber'): errors.append(f'{pid}: missing productNumber')
+    if p.get('stock') not in (None, 'available', 'made_to_order', 'out'): errors.append(f'{pid}: invalid stock {p.get("stock")}')
+    if p.get('badge') not in (None, '', 'new', 'hot'): errors.append(f'{pid}: invalid badge {p.get("badge")}')
+    if p.get('oldPrice') is not None and (not isinstance(p['oldPrice'], int) or p['oldPrice'] <= (p.get('price') or 0)): errors.append(f'{pid}: oldPrice must be an integer higher than price')
     if not p.get('images'): errors.append(f'{pid}: no images')
     for img in p.get('images', []):
         if not os.path.isfile(os.path.join(ROOT, store.get('assetBase', '') + img)): errors.append(f'{pid}: missing file {img}')
@@ -50,6 +53,15 @@ for c in store['categories']:
     if c['id'] == 'all': errors.append('category id "all" is reserved')
     if c.get('icon') not in ICONS: errors.append(f'category {c["id"]}: unknown icon {c.get("icon")}')
     if c.get('navIcon') and c['navIcon'] not in ICONS: errors.append(f'category {c["id"]}: unknown navIcon {c["navIcon"]}')
+import re as _re
+if not _re.fullmatch(r'\d{10,15}', str(store.get('contact', {}).get('whatsapp', ''))): errors.append('contact.whatsapp must be 10-15 digits with country code')
+page_ids = [pg.get('id') for pg in store.get('pages', [])]
+if len(page_ids) != len(set(page_ids)): errors.append('duplicate page ids')
+for pg in store.get('pages', []):
+    if not pg.get('title') or not pg.get('body'): errors.append(f'page {pg.get("id")}: title and body are required')
+for g in store.get('shipping', {}).get('governorates', []):
+    if g.get('fee') is not None and not isinstance(g['fee'], int): errors.append(f'shipping fee for {g.get("name")} must be an integer or null')
+if not store['hero']['slides']: errors.append('hero needs at least one slide')
 if 'allProducts' not in store.get('labels', {}): errors.append('store.json: labels.allProducts is missing')
 pr = store.get('pricing', {})
 if not isinstance(pr.get('defaultPerGram'), int) or pr['defaultPerGram'] < 1: errors.append('pricing.defaultPerGram must be a positive integer')

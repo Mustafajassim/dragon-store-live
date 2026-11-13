@@ -7,7 +7,11 @@ is now a normal project: **assets / data / css / js**. CSS, markup and render co
 dragon-store/
 ├─ index.html                 shell: <head>, boot loader, SVG gradients, script tags
 ├─ css/styles.css             the original <style> block, byte-for-byte
-├─ css/pro.css                professional layer: image fade-in, floating buttons, lite mode, accessibility
+├─ css/fonts.css · utilities.css   self-hosted Tajawal font + the few utility classes the icons use (no CDN)
+├─ css/pro.css                professional layer: fade-in, announcement bar, pages, checkout, sorting, lite mode, accessibility
+├─ vendor/                    React 18.3.1 (self-hosted, pinned)
+├─ js/extras.js               checkout form, info pages/FAQ, custom order, announcement, analytics, sorting
+├─ js/defaults.js             built-in defaults for settings missing from your store.json
 ├─ manifest.webmanifest · robots.txt · sitemap.xml · 404.html
 ├─ js/
 │  ├─ icons.js                icon library (verbatim)
@@ -94,3 +98,18 @@ The page is also marked `translate="no"` so browser auto-translate cannot break 
 ## SEO / sharing
 `index.html` contains Open Graph / Twitter tags, canonical URL and JSON-LD for the store using
 `https://mustafajassim.github.io/dragon-store-live/` — change these URLs (and `sitemap.xml`, `robots.txt`) if you move to a custom domain.
+
+## v3 additions
+**Storefront:** WhatsApp icon in the header (next to the cart) · announcement bar · checkout with name / phone validation / governorate + delivery fee /
+notes / payment method and an order number (DS-yymmdd-XXXX) · «اطلب تصميمك» form · pages (shipping, payment, returns, about, privacy) + FAQ ·
+product description, availability (متوفر / حسب الطلب / نفد), discount (price before), dimensions, print time, badges ·
+sorting + «المتوفر فقط» in "all products" · saved carts refresh when prices/stock change · Esc closes dialogs, focus trap, 44 px touch targets ·
+self-hosted React and fonts (no Tailwind/unpkg/Google requests) · optional Google Analytics 4 / Meta Pixel / TikTok Pixel (just enter the IDs).
+
+**Dashboard:** «⚙ الموقع» → contact & social links, announcement bar, custom-order button, **banners** (upload / reorder / delete),
+**delivery fees per governorate + free-shipping threshold + payment methods**, **pages & FAQ editor**, tracking IDs, backup download.
+Products: description, availability, price before discount, badge, dimensions, print time, hide, **duplicate (⧉)**.
+New images are saved as WebP (JPG on Safari).
+
+**Pages text:** the default pages are generic drafts (marked «مسودة — راجعها») — review and edit them in the dashboard before relying on them.
+**Orders** still go through WhatsApp (nothing is stored on a server). Saving orders in a database needs a backend (e.g. Firebase) and your credentials.

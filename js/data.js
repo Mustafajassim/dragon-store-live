@@ -40,8 +40,20 @@ async function fetchData(){
     store=window.__DRAGON_DATA__.store;
     doc=window.__DRAGON_DATA__.products;
   }
+  store=withStoreDefaults(store);
   ASSET_BASE=store.assetBase||'';
   return{store,products:doc.products};
+}
+
+/* optional product fields added by the dashboard */
+function extraFields(r){
+  const o={stock:r.stock||'available'};
+  if(r.description)o.description=r.description;
+  if(r.dimensions)o.dimensions=r.dimensions;
+  if(r.printTime)o.printTime=r.printTime;
+  if(r.badge)o.badge=r.badge;
+  if(r.oldPrice>r.price){o.originalPrice=r.oldPrice;o.discountPercent=Math.round((1-r.price/r.oldPrice)*100);}
+  return o;
 }
 
 function buildCatalog(store,records){
@@ -52,13 +64,13 @@ function buildCatalog(store,records){
 
   // 1) real catalogue sections (own products)
   realCats.forEach(cat=>{
-    records.filter(r=>r.categoryId===cat.id).forEach(r=>{
+    records.filter(r=>r.categoryId===cat.id&&!r.hidden).forEach(r=>{
       const images=r.images&&r.images.length?r.images.map(assetUrl):fallbackImages;
       if(r.price==null||!r.weightGrams){
         all.push({id:r.id,categoryId:cat.id,categoryName:cat.name,name:r.name,comingSoon:true,price:null,priceLabel:r.priceLabel||store.labels.priceTbd,images,productNumber:r.productNumber});
         return;
       }
-      all.push({id:r.id,categoryId:cat.id,categoryName:cat.name,name:r.name,price:r.price,weightGrams:r.weightGrams,images,material:r.material,weight:`${r.weightGrams}g`,productNumber:r.productNumber});
+      all.push({id:r.id,categoryId:cat.id,categoryName:cat.name,name:r.name,price:r.price,weightGrams:r.weightGrams,images,material:r.material,weight:`${r.weightGrams}g`,productNumber:r.productNumber,...extraFields(r)});
     });
   });
 

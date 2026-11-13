@@ -51,4 +51,4 @@ function perfProbe(){
   },1200);
 }
 
-fetchData().then(d=>{renderApp(d);perfProbe();}).catch(showLoadError);
+fetchData().then(d=>{initAnalytics(d.store.analytics);renderApp(d);perfProbe();}).catch(showLoadError);

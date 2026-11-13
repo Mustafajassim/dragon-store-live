@@ -8,9 +8,8 @@
   <meta name="theme-color" content="#08080b">
   <title>لوحة التحكم — DRAGON STORE</title>
   <link rel="icon" type="image/png" href="../assets/images/brand/dragon-logo.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/fonts.css">
+  <link rel="stylesheet" href="../css/utilities.css">
   <!-- same stylesheet as the storefront → same tokens, fonts, buttons, inputs -->
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="admin.css">
@@ -64,7 +63,7 @@
     <div class="adm-toolbar">
       <input class="field-input" id="q" type="search" placeholder="ابحث بالاسم أو رقم المنتج..." autocomplete="off">
       <select class="field-input" id="catFilter" aria-label="القسم"></select>
-      <div class="adm-tb-btns"><button class="adm-btn-ghost" id="btnSections" type="button">▤ الأقسام</button><button class="adm-btn-ghost" id="btnPricing" type="button">$ التسعير</button><button class="btn-fire" id="btnAdd" type="button">＋ إضافة منتج</button></div>
+      <div class="adm-tb-btns"><button class="adm-btn-ghost" id="btnSections" type="button">▤ الأقسام</button><button class="adm-btn-ghost" id="btnPricing" type="button">$ التسعير</button><button class="adm-btn-ghost" id="btnSettings2" type="button">⚙ الموقع</button><button class="btn-fire" id="btnAdd" type="button">＋ إضافة منتج</button></div>
     </div>
     <div class="adm-grid" id="grid"></div>
     <p class="adm-muted adm-foot">اللوحة تدير منتجات الأقسام الموقع. أقسام الترند والأكثر مبيعاً والخصومات تُبنى تلقائياً من المنتجات.</p>
@@ -75,6 +74,7 @@
 <div class="adm-toast" id="toast" role="status" aria-live="polite"></div>
 
 <input type="file" id="fileInput" accept="image/*" multiple hidden>
+<script src="../js/defaults.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

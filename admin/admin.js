@@ -11,6 +11,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 const CFG_KEY = 'dragonAdminCfg';
 const PRODUCT_DIR = 'assets/images/products/';
+const HERO_DIR = 'assets/images/hero/';
 const MIN_IMAGES = 3, MAX_IMAGES = 8;
 const MAX_SIDE = 1000, JPEG_QUALITY = 0.85;
 
@@ -105,7 +106,7 @@ async function connect() {
       gh(`/contents/data/store.json?ref=${ref}`, { raw: true }),
       gh(`/contents/data/products.json?ref=${ref}`, { raw: true })
     ]);
-    S.store = JSON.parse(storeText);
+    S.store = withStoreDefaults(JSON.parse(storeText));   // older store.json files get the new settings' defaults
     S.storeBaseText = storeText;
     S.sheet = null;
     S.baseText = prodText;
@@ -162,34 +163,39 @@ function renderGrid() {
     const t = S.touched.get(p.id);
     return `<article class="adm-card ${t === 'new' ? 'is-new' : t === 'edited' ? 'is-edited' : ''}" data-id="${esc(p.id)}">
       <div class="adm-card-img"><img src="${esc(imgSrc(p.images[0]))}" alt="${esc(p.name)}" loading="lazy" decoding="async">
-        <span class="adm-num">#${p.productNumber}</span>${t ? `<span class="adm-tag ${t}">${t === 'new' ? 'جديد' : 'معدّل'}</span>` : ''}</div>
+        <span class="adm-num">#${p.productNumber}</span>${t ? `<span class="adm-tag ${t}">${t === 'new' ? 'جديد' : 'معدّل'}</span>` : ''}${p.hidden ? '<span class="adm-tag off">مخفي</span>' : (p.stock === 'out' ? '<span class="adm-tag off">نفد</span>' : '')}</div>
       <div class="adm-card-body"><div class="adm-card-name">${esc(p.name)}</div>
         <div class="adm-meta"><span>${esc(catById(p.categoryId)?.name || p.categoryId)}</span><span>${p.weightGrams}g</span><span>${p.images.length} صور</span></div>
         <div class="adm-price fire-txt">${fmtPrice(p.price)}</div>
-        <div class="adm-card-act"><button type="button" data-act="edit">تعديل</button><button type="button" class="del" data-act="delete">حذف</button></div></div></article>`;
+        <div class="adm-card-act"><button type="button" data-act="edit">تعديل</button><button type="button" data-act="dup" aria-label="نسخ المنتج" title="نسخ المنتج">⧉</button><button type="button" class="del" data-act="delete">حذف</button></div></div></article>`;
   }).join('') : '<div class="adm-empty">لا توجد منتجات مطابقة</div>';
 }
 
 /* ───────── image handling ───────── */
-A.processImage = async function (file) {
+const arDigits = s => String(s || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+A.processImage = async function (file, opts) {
+  opts = opts || {};
+  const maxSide = opts.maxSide || MAX_SIDE;
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const sc = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const sc = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
   const x = c.getContext('2d');
   x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
   x.drawImage(bmp, 0, 0, c.width, c.height);
-  const url = c.toDataURL('image/jpeg', JPEG_QUALITY);
-  return { data: url.split(',')[1], preview: url };
+  let url = c.toDataURL('image/webp', 0.82), ext = 'webp';            // ~40% smaller than JPEG
+  if (!url.startsWith('data:image/webp')) { url = c.toDataURL('image/jpeg', JPEG_QUALITY); ext = 'jpg'; }   // Safari can't encode WebP
+  return { data: url.split(',')[1], preview: url, ext };
 };
 
 A.addFiles = async function (files) {
+  if (S.sheet && S.sheet.type === 'settings') return addHeroFiles(files);
   const E = S.editor; if (!E) return;
   const room = MAX_IMAGES - E.images.length;
   const picked = [...files].filter(f => !f.type || f.type.startsWith('image/')).slice(0, room);
   if (files.length > room) toast(`الحد الأقصى ${MAX_IMAGES} صور لكل منتج.`, 'err');
   for (const f of picked) {
-    try { const r = await A.processImage(f); E.images.push({ kind: 'new', data: r.data, preview: r.preview }); }
+    try { const r = await A.processImage(f); E.images.push({ kind: 'new', data: r.data, preview: r.preview, ext: r.ext || 'jpg' }); }
     catch (e) { toast(`تعذّرت قراءة الصورة "${f.name}" — جرّب JPG أو PNG.`, 'err'); }
   }
   renderEditorImages(); refreshEditorState();
@@ -205,6 +211,7 @@ function openEditor(id) {
     name: p?.name || '', categoryId: p?.categoryId || (S.cat !== 'all' ? S.cat : cats[0].id),
     weight: p ? String(p.weightGrams) : '', price: p ? String(p.price) : '', priceTouched: !!p,
     material: p?.material || 'PLA Premium',
+    desc: p?.description || '', stock: p?.stock || 'available', badge: p?.badge || '', old: p?.oldPrice ? String(p.oldPrice) : '', dim: p?.dimensions || '', print: p?.printTime || '', hidden: !!p?.hidden,
     images: (p?.images || []).map(path => ({ kind: 'existing', path })),
     original: p ? JSON.parse(JSON.stringify(p)) : null
   };
@@ -220,9 +227,20 @@ function openEditor(id) {
       </div>
       <div class="adm-hint" id="priceHint"></div>
       <div><label class="field-lbl" for="eMat">الخامة</label><input class="field-input" id="eMat" value="${esc(E.material)}" autocomplete="off"></div>
+      <div><label class="field-lbl" for="eDesc">وصف المنتج (اختياري)</label><textarea class="field-input" id="eDesc" rows="3" maxlength="700" placeholder="يظهر في نافذة المنتج">${esc(E.desc)}</textarea></div>
+      <div class="adm-two">
+        <div><label class="field-lbl" for="eStock">حالة التوفر</label><select class="field-input" id="eStock">${[['available', 'متوفر'], ['made_to_order', 'يُنفَّذ حسب الطلب'], ['out', 'نفد حالياً']].map(([v, l]) => `<option value="${v}" ${v === E.stock ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div><label class="field-lbl" for="eBadge">شارة على البطاقة</label><select class="field-input" id="eBadge">${[['', 'بدون'], ['new', 'جديد'], ['hot', 'الأكثر طلباً']].map(([v, l]) => `<option value="${v}" ${v === E.badge ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      </div>
+      <div class="adm-two">
+        <div><label class="field-lbl" for="eOld">السعر قبل الخصم (اختياري)</label><input class="field-input" id="eOld" inputmode="numeric" value="${esc(E.old)}" placeholder="أعلى من السعر الحالي"></div>
+        <div><label class="field-lbl" for="eDim">الأبعاد (اختياري)</label><input class="field-input" id="eDim" value="${esc(E.dim)}" placeholder="مثال: 12 سم"></div>
+      </div>
+      <div><label class="field-lbl" for="ePrint">مدة التنفيذ (اختياري)</label><input class="field-input" id="ePrint" value="${esc(E.print)}" placeholder="مثال: يومان"></div>
+      <label class="adm-check"><input type="checkbox" id="eHidden" ${E.hidden ? 'checked' : ''}> إخفاء المنتج من الموقع (يبقى محفوظاً هنا)</label>
       <div><label class="field-lbl">الصور — <span class="adm-count" id="imgCount"></span> <span class="adm-muted">(الأولى هي الصورة الرئيسية في البطاقة)</span></label>
         <div class="adm-imgs" id="eImgs"></div>
-        <div class="adm-hint">تُصغَّر الصور تلقائياً إلى ${MAX_SIDE}px وتُحفظ JPG حتى يبقى الموقع سريعاً.</div></div>
+        <div class="adm-hint">تُصغَّر الصور تلقائياً إلى ${MAX_SIDE}px وتُحفظ بصيغة WebP (JPG في سفاري) حتى يبقى الموقع سريعاً.</div></div>
       <p class="adm-err" id="eErr" hidden></p>
     </div>
     <div class="adm-sheet-ftr"><button class="btn-fire" type="button" id="eSave">${p ? 'حفظ التعديلات' : 'إضافة المنتج'}</button>
@@ -261,15 +279,16 @@ function validateEditor() {
   if (!/^\d+$/.test(String(E.price).trim()) || pr < 1) errs.push('السعر يجب أن يكون رقماً صحيحاً أكبر من 0.');
   if (E.images.length < MIN_IMAGES) errs.push(`أضف ${MIN_IMAGES} صور على الأقل (الحالي ${E.images.length}).`);
   if (!E.material.trim()) errs.push('اكتب الخامة.');
+  if (E.old.trim() && (!/^\d+$/.test(E.old.trim()) || Number(E.old) <= pr)) errs.push('السعر قبل الخصم يجب أن يكون رقماً أكبر من السعر الحالي (أو اتركه فارغاً).');
   const dup = S.products.find(p => p.id !== E.id && isManaged(p) && p.name.trim().toLowerCase() === E.name.trim().toLowerCase());
   if (dup) errs.push(`يوجد منتج بنفس الاسم (#${dup.productNumber}).`);
   return errs;
 }
 
 /* choose a free file name:  assets/images/products/<cat-slug>/<cat-slug>-<product-slug>-NN.jpg */
-function freePath(catSlug, slug, taken) {
+function freePath(catSlug, slug, taken, ext) {
   for (let n = 1; n < 100; n++) {
-    const path = `${PRODUCT_DIR}${catSlug}/${catSlug}-${slug}-${String(n).padStart(2, '0')}.jpg`;
+    const path = `${PRODUCT_DIR}${catSlug}/${catSlug}-${slug}-${String(n).padStart(2, '0')}.${ext || 'jpg'}`;
     if (!taken.has(path) && !S.pendingDeletes.has(path)) return path;
   }
   throw new Error('no free image name');
@@ -277,8 +296,9 @@ function freePath(catSlug, slug, taken) {
 const allPaths = () => new Set([...S.products.flatMap(p => p.images), ...S.pendingFiles.keys()]);
 
 function dropImagePath(path) {
-  if (!path.startsWith(PRODUCT_DIR)) return;                       // never delete shared placeholders/hero/brand
-  if (S.products.some(p => p.images.includes(path))) return;       // still used by another product
+  if (!path.startsWith(PRODUCT_DIR) && !path.startsWith(HERO_DIR)) return;     // never delete brand icons / placeholders
+  if (S.products.some(p => p.images.includes(path))) return;                    // still used by a product
+  if (((S.store.hero || {}).slides || []).some(s => s.image === path)) return; // still used by a banner
   if (S.pendingFiles.has(path)) S.pendingFiles.delete(path); else S.pendingDeletes.add(path);
 }
 
@@ -301,12 +321,15 @@ function saveEditor() {
     removed = rec.images.filter(p => !keep.has(p));
     Object.assign(rec, { name, categoryId: cat.id, weightGrams, price, material });
   }
+  const opt = (k, v) => { if (v) rec[k] = v; else delete rec[k]; };
+  opt('description', E.desc.trim()); opt('stock', E.stock !== 'available' ? E.stock : ''); opt('badge', E.badge);
+  opt('oldPrice', E.old.trim() ? parseInt(E.old, 10) : 0); opt('dimensions', E.dim.trim()); opt('printTime', E.print.trim()); opt('hidden', E.hidden);
   // resolve image list in the chosen order (new images get fresh file names)
   const taken = allPaths();
   const finalPaths = [];
   for (const im of E.images) {
     if (im.kind === 'existing') { finalPaths.push(im.path); continue; }
-    const path = freePath(cat.slug, rec.slug, taken); taken.add(path);
+    const path = freePath(cat.slug, rec.slug, taken, im.ext); taken.add(path);
     S.pendingFiles.set(path, im.data); S.previews.set(path, im.preview); finalPaths.push(path);
   }
   rec.images = finalPaths;
@@ -570,6 +593,7 @@ function doDelCat() {
 
 /* one click handler for everything inside the pricing / sections sheet */
 function sheetClick(e) {
+  if (S.sheet.type === 'settings') return settingsClick(e);
   const t = e.target;
   if (t.closest('[data-close]')) return closeEditor();
   const b = t.closest('[data-sec-act]'); if (!b) return;
@@ -592,6 +616,191 @@ function sheetClick(e) {
 }
 A.sheetClick = sheetClick;
 
+/* ───────── duplicate a product (copies its images too) ───────── */
+async function duplicateProduct(id) {
+  const p = S.products.find(x => x.id === id); if (!p) return;
+  openEditor(null);
+  const E = S.editor;
+  Object.assign(E, { name: p.name + ' (نسخة)', categoryId: p.categoryId, weight: String(p.weightGrams), price: String(p.price), priceTouched: true, material: p.material || 'PLA Premium', desc: p.description || '', stock: p.stock || 'available', badge: p.badge || '', old: p.oldPrice ? String(p.oldPrice) : '', dim: p.dimensions || '', print: p.printTime || '' });
+  openEditorFill();
+  for (const path of p.images) {
+    try {
+      const blob = await (await fetch(imgSrc(path))).blob();
+      const url = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+      if (S.editor !== E) return;
+      E.images.push({ kind: 'new', data: url.split(',')[1], preview: url, ext: (path.split('.').pop() || 'jpg').toLowerCase() });
+    } catch (e) { toast('تعذّر نسخ إحدى الصور — أضفها يدوياً.', 'err'); }
+  }
+  renderEditorImages(); refreshEditorState();
+}
+function openEditorFill() {
+  const E = S.editor; if (!E) return;
+  $('#eName').value = E.name; $('#eCat').value = E.categoryId; $('#eWeight').value = E.weight; $('#ePrice').value = E.price; $('#eMat').value = E.material;
+  $('#eDesc').value = E.desc; $('#eStock').value = E.stock; $('#eBadge').value = E.badge; $('#eOld').value = E.old; $('#eDim').value = E.dim; $('#ePrint').value = E.print;
+  refreshEditorState();
+}
+A.duplicateProduct = duplicateProduct;
+
+/* ───────── site settings sheet (store.json) ───────── */
+const ST_TABS = [['contact', 'التواصل والإعلان'], ['hero', 'البنرات'], ['ship', 'التوصيل والدفع'], ['pages', 'الصفحات والأسئلة'], ['track', 'التتبع'], ['tools', 'نسخ احتياطي']];
+const validUrl = u => !u || /^https?:\/\/\S+$/i.test(u);
+const fld = (id, label, val, extra = '') => `<div><label class="field-lbl" for="${id}">${label}</label><input class="field-input" id="${id}" value="${esc(val ?? '')}" autocomplete="off" ${extra}></div>`;
+
+function heroRowsHTML() {
+  const hs = S.sheet.hero;
+  return hs.map((s, i) => `<div class="adm-hero" data-i="${i}"><img src="${esc(s.kind === 'new' ? s.preview : imgSrc(s.image))}" alt=""><div class="adm-hero-f"><input class="field-input" data-hero-title value="${esc(s.title)}" placeholder="عنوان يظهر على البنر" maxlength="60"></div>
+    <div class="adm-hero-b"><button type="button" data-st-act="hero-up" ${i === 0 ? 'disabled' : ''} aria-label="للأعلى">▲</button><button type="button" data-st-act="hero-down" ${i === hs.length - 1 ? 'disabled' : ''} aria-label="للأسفل">▼</button><button type="button" data-st-act="hero-del" aria-label="حذف البنر">✕</button></div></div>`).join('') +
+    `<button type="button" class="adm-btn-ghost" data-st-act="hero-add">＋ إضافة بنر</button><div class="adm-hint">الأفضل صورة عريضة بنسبة قريبة من 1640×624 (تُصغَّر تلقائياً إلى عرض 1640px). ${hs.length < 1 ? '<b>يلزم بنر واحد على الأقل.</b>' : ''}</div>`;
+}
+function pagesRowsHTML() {
+  return S.sheet.pages.map((p, i) => `<div class="adm-page" data-i="${i}"><div class="adm-page-h"><input class="field-input" data-pg-title value="${esc(p.title)}" placeholder="عنوان الصفحة" maxlength="50">${p.draft ? '<span class="adm-badge">مسودة — راجعها</span>' : ''}<button type="button" class="adm-btn-ghost adm-btn-danger" data-st-act="pg-del" aria-label="حذف الصفحة">✕</button></div>
+    <textarea class="field-input" data-pg-body rows="5" placeholder="النص. اترك سطراً فارغاً بين الفقرات، وابدأ السطر بـ «- » لعمل قائمة.">${esc(p.body)}</textarea>
+    <label class="adm-check"><input type="checkbox" data-pg-footer ${p.footer !== false ? 'checked' : ''}> إظهار الرابط في أسفل الموقع</label></div>`).join('') + '<button type="button" class="adm-btn-ghost" data-st-act="pg-add">＋ صفحة جديدة</button>';
+}
+function faqRowsHTML() {
+  return S.sheet.faq.map((q, i) => `<div class="adm-page" data-i="${i}"><div class="adm-page-h"><input class="field-input" data-fq-q value="${esc(q.q)}" placeholder="السؤال" maxlength="120"><button type="button" class="adm-btn-ghost adm-btn-danger" data-st-act="fq-del" aria-label="حذف السؤال">✕</button></div><textarea class="field-input" data-fq-a rows="2" placeholder="الجواب">${esc(q.a)}</textarea></div>`).join('') + '<button type="button" class="adm-btn-ghost" data-st-act="fq-add">＋ سؤال جديد</button>';
+}
+function payRowsHTML() {
+  return S.sheet.pays.map((p, i) => `<div class="adm-pay" data-i="${i}"><input class="field-input" data-pay value="${esc(p)}" placeholder="مثال: الدفع عند الاستلام" maxlength="40"><button type="button" class="adm-btn-ghost adm-btn-danger" data-st-act="pay-del" aria-label="حذف">✕</button></div>`).join('') + '<button type="button" class="adm-btn-ghost" data-st-act="pay-add">＋ طريقة دفع</button>';
+}
+function settingsBodyHTML() {
+  const st = S.store, ct = st.contact || {}, sc = st.social || {}, an = st.announcement || {}, co = st.customOrder || {}, sh = st.shipping || { governorates: [] }, tr = st.analytics || {};
+  const tabs = `<div class="adm-tabs" role="tablist">${ST_TABS.map(([k, l], i) => `<button type="button" role="tab" class="adm-tab ${i === 0 ? 'on' : ''}" data-st-tab="${k}">${l}</button>`).join('')}</div>`;
+  const contact = `<section data-panel="contact">
+    <div class="adm-two">${fld('sWa', 'رقم واتساب (مع رمز الدولة)', ct.whatsapp, 'dir="ltr" inputmode="numeric" placeholder="9647701234567"')}${fld('sPhone', 'الرقم المعروض للزبائن', ct.phoneDisplay, 'dir="ltr" placeholder="+964 770 123 4567"')}</div>
+    ${fld('sHours', 'ساعات العمل (اختياري)', ct.hours, 'placeholder="مثال: 10 صباحاً - 10 مساءً"')}
+    <div class="adm-two">${fld('sFb', 'رابط فيسبوك', sc.facebook, 'dir="ltr"')}${fld('sIg', 'رابط إنستغرام', sc.instagram, 'dir="ltr"')}${fld('sTk', 'رابط تيك توك (اختياري)', sc.tiktok, 'dir="ltr"')}${fld('sTg', 'رابط تيليغرام (اختياري)', sc.telegram, 'dir="ltr"')}</div>
+    <h4 class="adm-h4">شريط الإعلان أعلى الموقع</h4>
+    <label class="adm-check"><input type="checkbox" id="sAnnOn" ${an.enabled ? 'checked' : ''}> إظهار الشريط</label>
+    ${fld('sAnnText', 'نص الإعلان', an.text, 'maxlength="140" placeholder="مثال: خصم 10% على كل المجسمات هذا الأسبوع"')}${fld('sAnnLink', 'رابط عند الضغط (اختياري)', an.link, 'dir="ltr" placeholder="https://..."')}
+    <h4 class="adm-h4">زر «اطلب تصميمك»</h4>
+    <div class="adm-two">${fld('sCoLabel', 'نص الزر', co.label, 'maxlength="30"')}<label class="adm-check" style="align-self:end"><input type="checkbox" id="sCoOn" ${co.enabled !== false ? 'checked' : ''}> مفعّل</label></div></section>`;
+  const hero = `<section data-panel="hero" hidden><div>${fld('sHeroSec', 'مدة بقاء كل بنر (ثوانٍ)', String(Math.round(((st.hero || {}).intervalMs || 3400) / 100) / 10), 'inputmode="decimal"')}</div><div id="heroRows">${heroRowsHTML()}</div></section>`;
+  const gov = `<table class="adm-tbl"><tbody>${(sh.governorates || []).map(g => `<tr><td>${esc(g.name)}</td><td><input class="field-input" data-gov="${esc(g.name)}" inputmode="numeric" value="${g.fee == null ? '' : g.fee}" placeholder="تُحدَّد عند التأكيد"></td></tr>`).join('')}</tbody></table>`;
+  const ship = `<section data-panel="ship" hidden><p class="adm-muted">أجرة التوصيل لكل محافظة (د.ع). اترك الخانة فارغة لتظهر للزبون «تُحدَّد عند التأكيد».</p>${fld('sFree', 'توصيل مجاني للطلبات فوق (د.ع) — 0 للتعطيل', sh.freeOver || 0, 'inputmode="numeric"')}${gov}<h4 class="adm-h4">طرق الدفع</h4><p class="adm-muted">تظهر للزبون عند الطلب. اتركها فارغة إن لم تحتج.</p><div id="payRows">${payRowsHTML()}</div></section>`;
+  const pages = `<section data-panel="pages" hidden><h4 class="adm-h4">الصفحات (الشحن، الاسترجاع، الخصوصية، من نحن...)</h4><div id="pageRows">${pagesRowsHTML()}</div><h4 class="adm-h4">الأسئلة الشائعة</h4><div id="faqRows">${faqRowsHTML()}</div></section>`;
+  const track = `<section data-panel="track" hidden><p class="adm-muted">أدخل المعرّفات فقط وسيفعّل الموقع التتبع تلقائياً (بدون تعديل كود). اتركها فارغة لعدم استخدامها.</p>${fld('sGa', 'Google Analytics 4 — Measurement ID', tr.ga4, 'dir="ltr" placeholder="G-XXXXXXXXXX"')}${fld('sMeta', 'Meta (Facebook/Instagram) Pixel ID', tr.metaPixel, 'dir="ltr" placeholder="123456789012345"')}${fld('sTt', 'TikTok Pixel ID', tr.tiktokPixel, 'dir="ltr" placeholder="C1234567890ABCDEF"')}<p class="adm-hint">الأحداث المرسلة: عرض منتج، إضافة للسلة، بدء الطلب، إرسال الطلب، نقر واتساب/طلب مخصص.</p></section>`;
+  const tools = `<section data-panel="tools" hidden><p class="adm-muted">نزّل نسخة من بيانات المتجر (المنتجات والإعدادات) كملف واحد. تحتفظ GitHub أيضاً بتاريخ كل تعديل.</p><button type="button" class="adm-btn-ghost" data-st-act="backup">⬇ تنزيل نسخة احتياطية</button></section>`;
+  return tabs + contact + hero + ship + pages + track + tools + '<p class="adm-err" id="stErr" hidden></p>';
+}
+function openSettings() {
+  const st = S.store;
+  openSheet('settings', 'إعدادات الموقع', '', '<button class="btn-fire" type="button" data-st-act="save">حفظ الإعدادات</button><button class="adm-btn-ghost" type="button" data-close>إلغاء</button>');
+  Object.assign(S.sheet, {
+    hero: ((st.hero || {}).slides || []).map(s => ({ kind: 'existing', title: s.title, image: s.image })),
+    pages: JSON.parse(JSON.stringify(st.pages || [])), faq: JSON.parse(JSON.stringify(st.faq || [])), pays: (st.payments || []).slice()
+  });
+  $('#sheetBody').innerHTML = settingsBodyHTML();
+  $('#sheet .adm-sheet').classList.add('wide');
+}
+A.openSettings = openSettings;
+
+/* pull what is typed in the repeating rows back into the working arrays (before re-rendering them) */
+function syncLists() {
+  const q = (sel, root = document) => [...root.querySelectorAll(sel)];
+  q('.adm-hero').forEach(r => { const s = S.sheet.hero[+r.dataset.i]; if (s) s.title = r.querySelector('[data-hero-title]').value; });
+  q('#pageRows .adm-page').forEach(r => { const p = S.sheet.pages[+r.dataset.i]; if (p) { p.title = r.querySelector('[data-pg-title]').value; p.body = r.querySelector('[data-pg-body]').value; p.footer = r.querySelector('[data-pg-footer]').checked; } });
+  q('#faqRows .adm-page').forEach(r => { const f = S.sheet.faq[+r.dataset.i]; if (f) { f.q = r.querySelector('[data-fq-q]').value; f.a = r.querySelector('[data-fq-a]').value; } });
+  q('#payRows .adm-pay').forEach(r => { S.sheet.pays[+r.dataset.i] = r.querySelector('[data-pay]').value; });
+}
+async function addHeroFiles(files) {
+  for (const f of [...files].slice(0, 6)) {
+    try { const r = await A.processImage(f, { maxSide: 1640 }); syncLists(); S.sheet.hero.push({ kind: 'new', title: '', data: r.data, preview: r.preview, ext: r.ext || 'jpg' }); }
+    catch (e) { toast(`تعذّرت قراءة الصورة "${f.name}".`, 'err'); }
+  }
+  if (S.sheet && $('#heroRows')) $('#heroRows').innerHTML = heroRowsHTML();
+}
+function settingsClick(e) {
+  const t = e.target;
+  if (t.closest('[data-close]')) return closeEditor();
+  const tab = t.closest('[data-st-tab]');
+  if (tab) { document.querySelectorAll('.adm-tab').forEach(b => b.classList.toggle('on', b === tab)); document.querySelectorAll('[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== tab.dataset.stTab; }); return; }
+  const b = t.closest('[data-st-act]'); if (!b) return;
+  const act = b.dataset.stAct, row = b.closest('[data-i]'), i = row ? +row.dataset.i : -1, SH = S.sheet;
+  syncLists();
+  if (act === 'save') return saveSettings();
+  if (act === 'backup') return downloadBackup();
+  if (act === 'hero-add') return $('#fileInput').click();
+  if (act === 'hero-del') { SH.hero.splice(i, 1); $('#heroRows').innerHTML = heroRowsHTML(); return; }
+  if (act === 'hero-up' && i > 0) { [SH.hero[i - 1], SH.hero[i]] = [SH.hero[i], SH.hero[i - 1]]; $('#heroRows').innerHTML = heroRowsHTML(); return; }
+  if (act === 'hero-down' && i < SH.hero.length - 1) { [SH.hero[i + 1], SH.hero[i]] = [SH.hero[i], SH.hero[i + 1]]; $('#heroRows').innerHTML = heroRowsHTML(); return; }
+  if (act === 'pg-add') { SH.pages.push({ id: '', title: '', body: '', footer: true }); $('#pageRows').innerHTML = pagesRowsHTML(); return; }
+  if (act === 'pg-del') { SH.pages.splice(i, 1); $('#pageRows').innerHTML = pagesRowsHTML(); return; }
+  if (act === 'fq-add') { SH.faq.push({ q: '', a: '' }); $('#faqRows').innerHTML = faqRowsHTML(); return; }
+  if (act === 'fq-del') { SH.faq.splice(i, 1); $('#faqRows').innerHTML = faqRowsHTML(); return; }
+  if (act === 'pay-add') { SH.pays.push(''); $('#payRows').innerHTML = payRowsHTML(); return; }
+  if (act === 'pay-del') { SH.pays.splice(i, 1); $('#payRows').innerHTML = payRowsHTML(); return; }
+}
+A.settingsClick = settingsClick;
+
+function downloadBackup() {
+  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), store: S.store, products: S.products }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dragon-store-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+function saveSettings() {
+  syncLists();
+  const st = S.store, SH = S.sheet, v = id => $('#' + id).value.trim(), errs = [];
+  const wa = arDigits(v('sWa')).replace(/\D/g, '');
+  if (!/^\d{10,15}$/.test(wa)) errs.push('رقم واتساب: أرقام فقط مع رمز الدولة، مثال 9647701234567.');
+  [['sFb', 'فيسبوك'], ['sIg', 'إنستغرام'], ['sTk', 'تيك توك'], ['sTg', 'تيليغرام'], ['sAnnLink', 'رابط الإعلان']].forEach(([id, n]) => { if (!validUrl(v(id))) errs.push(`رابط ${n} يجب أن يبدأ بـ https://`); });
+  const sec = parseFloat(arDigits(v('sHeroSec')));
+  if (!(sec >= 2 && sec <= 20)) errs.push('مدة البنر: رقم بين 2 و 20 ثانية.');
+  if (!SH.hero.length) errs.push('أبقِ بنراً واحداً على الأقل.');
+  const free = parseInt(arDigits(v('sFree')) || '0', 10);
+  if (!(free >= 0)) errs.push('حد التوصيل المجاني: رقم صحيح.');
+  const gov = [...document.querySelectorAll('[data-gov]')].map(i => ({ name: i.dataset.gov, raw: arDigits(i.value.trim()) }));
+  gov.forEach(g => { if (g.raw !== '' && !/^\d+$/.test(g.raw)) errs.push(`أجرة ${g.name}: أرقام فقط.`); });
+  const ga = v('sGa'), meta = v('sMeta'), tt = v('sTt');
+  if (ga && !/^G-[A-Z0-9]{4,}$/i.test(ga)) errs.push('معرّف Google Analytics يبدأ بـ G-.');
+  if (meta && !/^\d{6,20}$/.test(meta)) errs.push('معرّف بكسل ميتا أرقام فقط.');
+  if (tt && !/^[A-Z0-9]{8,30}$/i.test(tt)) errs.push('معرّف بكسل تيك توك: أحرف وأرقام إنجليزية.');
+  const pages = SH.pages.map(p => ({ ...p, title: p.title.trim(), body: p.body.trim() })).filter(p => p.title || p.body);
+  pages.forEach((p, i) => { if (!p.title || !p.body) errs.push(`الصفحة ${i + 1}: العنوان والنص مطلوبان.`); });
+  const faq = SH.faq.map(f => ({ q: f.q.trim(), a: f.a.trim() })).filter(f => f.q || f.a);
+  faq.forEach((f, i) => { if (!f.q || !f.a) errs.push(`السؤال ${i + 1}: السؤال والجواب مطلوبان.`); });
+  const box = $('#stErr');
+  if (errs.length) { box.hidden = false; box.innerHTML = errs.map(esc).join('<br>'); box.scrollIntoView && box.scrollIntoView({ block: 'nearest' }); return; }
+
+  const before = JSON.stringify(st);
+  // contact / social / announcement / custom order
+  st.contact = { ...st.contact, whatsapp: wa, phoneDisplay: v('sPhone') }; setOpt(st.contact, 'hours', v('sHours')); if (!('hours' in st.contact)) st.contact.hours = '';
+  st.social = { ...st.social, facebook: v('sFb'), instagram: v('sIg'), tiktok: v('sTk'), telegram: v('sTg') };
+  st.announcement = { enabled: $('#sAnnOn').checked, text: v('sAnnText'), link: v('sAnnLink') };
+  st.customOrder = { enabled: $('#sCoOn').checked, label: v('sCoLabel') || 'اطلب تصميمك' };
+  // shipping / payments
+  st.shipping = { ...(st.shipping || {}), freeOver: free, governorates: (st.shipping.governorates || []).map(g => { const x = gov.find(q => q.name === g.name); return { name: g.name, fee: x && x.raw !== '' ? parseInt(x.raw, 10) : null }; }) };
+  st.payments = SH.pays.map(p => p.trim()).filter(Boolean);
+  // pages + faq (a page counts as reviewed once saved)
+  const old = new Map((before ? (JSON.parse(before).pages || []) : []).map(p => [p.id, p]));
+  const usedIds = new Set();
+  st.pages = pages.map(p => {
+    let id = p.id || slugify(p.title) || 'page'; const base = id; let k = 2; while (usedIds.has(id)) id = `${base}-${k++}`; usedIds.add(id);
+    const o = old.get(p.id), changed = !o || o.title !== p.title || o.body !== p.body;
+    const rec = { id, title: p.title, footer: p.footer !== false, draft: !changed && !!(o && o.draft), body: p.body };
+    return rec;
+  });
+  st.faq = faq;
+  st.analytics = { ga4: ga, metaPixel: meta, tiktokPixel: tt };
+  // hero banners (new ones get a file name; removed ones are deleted from the repo)
+  const prevImages = ((st.hero || {}).slides || []).map(s => s.image);
+  const taken = new Set([...allPaths(), ...prevImages]);
+  const slides = SH.hero.map(s => {
+    if (s.kind === 'existing') return { title: s.title.trim(), image: s.image };
+    const base = slugify(s.title) || 'banner'; let n = 1, path;
+    do { path = `${HERO_DIR}hero-${String(n++).padStart(2, '0')}-${base}.${s.ext || 'jpg'}`; } while (taken.has(path) || S.pendingDeletes.has(path));
+    taken.add(path); S.pendingFiles.set(path, s.data); S.previews.set(path, s.preview);
+    return { title: s.title.trim(), image: path };
+  });
+  st.hero = { ...(st.hero || {}), intervalMs: Math.round(sec * 1000), slides };
+  prevImages.filter(p => !slides.some(s => s.image === p)).forEach(dropImagePath);
+  if (JSON.stringify(st) !== before) logOnce('⚙ تعديل إعدادات الموقع');
+  closeEditor(); renderAll();
+  toast('تم حفظ الإعدادات. اضغط «نشر التغييرات» لتظهر في الموقع.');
+}
+A.saveSettings = saveSettings;
+
 /* ───────── events ───────── */
 function bind() {
   $('#btnConnect').onclick = () => {
@@ -607,6 +816,7 @@ function bind() {
   $('#btnAdd').onclick = () => openEditor(null);
   $('#btnSections').onclick = openSections;
   $('#btnPricing').onclick = openPricing;
+  $('#btnSettings2').onclick = openSettings;
   $('#q').oninput = e => { S.q = e.target.value; renderGrid(); };
   $('#catFilter').onchange = e => { S.cat = e.target.value; renderGrid(); };
   $('#fileInput').onchange = e => { A.addFiles([...e.target.files]); e.target.value = ''; };
@@ -618,6 +828,7 @@ function bind() {
     const card = t.closest('.adm-card');
     if (card && t.closest('[data-act="edit"]')) return openEditor(card.dataset.id);
     if (card && t.closest('[data-act="delete"]')) return deleteProduct(card.dataset.id);
+    if (card && t.closest('[data-act="dup"]')) return duplicateProduct(card.dataset.id);
     if (S.sheet) return sheetClick(e);
     if (!S.editor) return;
     if (t.closest('[data-close]')) return closeEditor();
@@ -639,6 +850,10 @@ function bind() {
     const id = e.target.id;
     if (id === 'eName') E.name = e.target.value;
     else if (id === 'eMat') E.material = e.target.value;
+    else if (id === 'eDesc') E.desc = e.target.value;
+    else if (id === 'eOld') E.old = e.target.value;
+    else if (id === 'eDim') E.dim = e.target.value;
+    else if (id === 'ePrint') E.print = e.target.value;
     else if (id === 'eWeight') {
       E.weight = e.target.value;
       const w = parseInt(E.weight, 10);
@@ -646,7 +861,13 @@ function bind() {
       refreshEditorState();
     } else if (id === 'ePrice') { E.price = e.target.value; E.priceTouched = true; refreshEditorState(); }
   });
-  document.addEventListener('change', e => { if (S.editor && e.target.id === 'eCat') S.editor.categoryId = e.target.value; });
+  document.addEventListener('change', e => {
+    const E = S.editor; if (!E) return;
+    if (e.target.id === 'eCat') E.categoryId = e.target.value;
+    else if (e.target.id === 'eStock') E.stock = e.target.value;
+    else if (e.target.id === 'eBadge') E.badge = e.target.value;
+    else if (e.target.id === 'eHidden') E.hidden = e.target.checked;
+  });
   document.addEventListener('input', e => { if (S.sheet && S.sheet.type === 'pricing' && e.target.closest('#sheet')) updatePricingPreview(); });
   document.addEventListener('change', e => { if (S.sheet && S.sheet.type === 'pricing' && e.target.id === 'pRound') updatePricingPreview(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && (S.editor || S.sheet)) closeEditor(); });

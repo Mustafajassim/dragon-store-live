@@ -138,3 +138,26 @@ select.field-input option{background:#141417;color:#F4F4F7}
 .adm-radio{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--txt2);margin-top:8px}.adm-radio input{accent-color:var(--f1)}.adm-radio .field-input{width:auto;flex:1;min-width:140px}
 .adm-danger-fill{background:linear-gradient(135deg,#c62828,#ef4444)!important;box-shadow:0 6px 22px rgba(239,68,68,.35)!important}
 .adm-sheet-ftr{flex-wrap:wrap}.adm-sheet-ftr .btn-fire{flex:1;min-width:150px}
+
+/* v3: settings sheet */
+.adm-sheet.wide{max-width:760px}
+.adm-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px}
+.adm-tab{flex:none;min-height:40px;padding:6px 14px;border-radius:99px;border:1px solid var(--border);background:var(--glass);color:var(--txt2);font-family:var(--font);font-size:12.5px;font-weight:800;cursor:pointer}
+.adm-tab.on{background:rgba(255,72,0,.16);border-color:var(--border-f);color:#fff}
+[data-panel]{display:flex;flex-direction:column;gap:12px}[data-panel][hidden]{display:none!important}
+.adm-h4{font-size:13.5px;font-weight:900;margin-top:8px;color:var(--f3)}
+.adm-hero{display:flex;gap:10px;align-items:center;padding:8px;background:var(--glass);border:1px solid var(--border);border-radius:var(--r-md)}
+.adm-hero img{width:96px;height:40px;object-fit:cover;border-radius:8px;flex:none}.adm-hero-f{flex:1;min-width:0}
+.adm-hero-b{display:flex;gap:4px;flex:none}.adm-hero-b button{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--txt2);cursor:pointer;font-family:var(--font)}
+.adm-hero-b button:hover:not(:disabled){background:rgba(255,72,0,.2);color:#fff}.adm-hero-b button:disabled{opacity:.3}
+.adm-page{padding:10px;background:var(--glass);border:1px solid var(--border);border-radius:var(--r-md);display:flex;flex-direction:column;gap:8px}
+.adm-page-h{display:flex;gap:8px;align-items:center}.adm-page-h .field-input{flex:1}.adm-page-h .adm-btn-ghost{min-height:40px;padding:4px 12px}
+.adm-pay{display:flex;gap:8px;align-items:center;margin-bottom:6px}.adm-pay .field-input{flex:1}
+.adm-tbl{width:100%;border-collapse:collapse}.adm-tbl td{padding:4px 6px;font-size:13px;font-weight:700;color:var(--txt2)}.adm-tbl td:first-child{width:38%}
+.adm-tag.off{background:rgba(80,80,90,.9)}
+textarea.field-input{resize:vertical;min-height:70px;font-family:var(--font)}
+.adm-card-act button[data-act=dup]{flex:0 0 38px}
+
+/* children of the scrollable sheet body must never shrink (an overflow:auto child would collapse and become unclickable) */
+.adm-sheet-body>*{flex-shrink:0}
+.adm-tabs{min-height:46px}
